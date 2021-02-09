@@ -84,6 +84,7 @@
     "subnetId": "[resourceId(variables('corePrefix'), 'Microsoft.Network/virtualNetworks/subnets', variables('vNetName'), variables('subnetName'))]",
 
     "sqlServerName": "[concat(variables('appNamePrefix'), '-sql-01')]",
+    "sqlServerId": "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]",
     "cdcMasteredDataDbName": "[concat(variables('namePrefix'), '-CDC-Mastered-Data')]"
 
   },
@@ -159,7 +160,7 @@
       "name": "[concat(variables('sqlServerName'), '/', variables('cdcMasteredDataDbName'))]",
       "location": "[resourceGroup().location]",
       "dependsOn": [
-        "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]"
+        "[variables('sqlServerId')]"
       ],
       "tags": {
         "environment": "[parameters('environment')]",
@@ -178,7 +179,5 @@
       }
     }
 
-  ],
-  "outputs": {
-  }
+  ]
 }
