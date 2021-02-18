@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30002.166
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dfe.CdcFileUnpacker.ConsoleApp", "Dfe.CdcFileUnpacker.ConsoleApp\Dfe.CdcFileUnpacker.ConsoleApp.csproj", "{B20626E7-A2F9-4E51-AFB9-9B0EFECB1E96}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dfe.CdcFileUnpacker.Domain", "Dfe.CdcFileUnpacker.Domain\Dfe.CdcFileUnpacker.Domain.csproj", "{0CEE6ED7-3C9D-40D7-99D2-BBC99104EB04}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B20626E7-A2F9-4E51-AFB9-9B0EFECB1E96}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B20626E7-A2F9-4E51-AFB9-9B0EFECB1E96}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B20626E7-A2F9-4E51-AFB9-9B0EFECB1E96}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B20626E7-A2F9-4E51-AFB9-9B0EFECB1E96}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CEE6ED7-3C9D-40D7-99D2-BBC99104EB04}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CEE6ED7-3C9D-40D7-99D2-BBC99104EB04}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CEE6ED7-3C9D-40D7-99D2-BBC99104EB04}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CEE6ED7-3C9D-40D7-99D2-BBC99104EB04}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {08DB5C32-D6A5-4271-B91C-7F3169D95555}
+	EndGlobalSection
+EndGlobal
