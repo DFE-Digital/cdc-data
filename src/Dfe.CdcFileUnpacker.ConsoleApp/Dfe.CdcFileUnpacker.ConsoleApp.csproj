@@ -25,7 +25,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Dfe.CdcFileUnpacker.Application\Dfe.CdcFileUnpacker.Application.csproj" />
     <ProjectReference Include="..\Dfe.CdcFileUnpacker.Domain\Dfe.CdcFileUnpacker.Domain.csproj" />
+    <ProjectReference Include="..\Dfe.CdcFileUnpacker.Infrastructure.AzureStorage\Dfe.CdcFileUnpacker.Infrastructure.AzureStorage.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

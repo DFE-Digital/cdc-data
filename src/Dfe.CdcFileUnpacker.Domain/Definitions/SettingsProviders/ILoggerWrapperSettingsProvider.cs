@@ -1,7 +1,5 @@
 ﻿namespace Dfe.CdcFileUnpacker.Domain.Definitions.SettingsProviders
 {
-    using Dfe.Spi.Common.Logging.Definitions;
-
     /// <summary>
     /// Describes the operations of the <see cref="ILoggerWrapper" /> settings
     /// provider.

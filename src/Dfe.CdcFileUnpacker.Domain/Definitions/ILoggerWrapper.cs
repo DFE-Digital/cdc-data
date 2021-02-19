@@ -1,4 +1,4 @@
-﻿namespace Dfe.Spi.Common.Logging.Definitions
+﻿namespace Dfe.CdcFileUnpacker.Domain.Definitions
 {
     using System;
     using System.Diagnostics.CodeAnalysis;

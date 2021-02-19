@@ -1,15 +1,18 @@
 ﻿namespace Dfe.CdcFileUnpacker.ConsoleApp
 {
+    using System;
     using System.Diagnostics.CodeAnalysis;
-    using System.IO;
     using System.Threading;
     using System.Threading.Tasks;
     using CommandLine;
+    using Dfe.CdcFileUnpacker.Application;
+    using Dfe.CdcFileUnpacker.Application.Definitions;
     using Dfe.CdcFileUnpacker.ConsoleApp.Definitions;
     using Dfe.CdcFileUnpacker.ConsoleApp.Models;
     using Dfe.CdcFileUnpacker.ConsoleApp.SettingsProviders;
+    using Dfe.CdcFileUnpacker.Domain.Definitions;
     using Dfe.CdcFileUnpacker.Domain.Definitions.SettingsProviders;
-    using Dfe.Spi.Common.Logging.Definitions;
+    using Dfe.CdcFileUnpacker.Infrastructure.AzureStorage;
     using Microsoft.Extensions.DependencyInjection;
 
     /// <summary>
@@ -18,6 +21,7 @@
     public class Program : IProgram
     {
         private readonly ILoggerWrapper loggerWrapper;
+        private readonly IUnpackRoutine unpackRoutine;
 
         /// <summary>
         /// Initialises a new instance of the <see cref="Program" /> class.
@@ -25,9 +29,15 @@
         /// <param name="loggerWrapper">
         /// An instance of type <see cref="ILoggerWrapper" />.
         /// </param>
-        public Program(ILoggerWrapper loggerWrapper)
+        /// <param name="unpackRoutine">
+        /// An instance of type <see cref="IUnpackRoutine" />.
+        /// </param>
+        public Program(
+            ILoggerWrapper loggerWrapper,
+            IUnpackRoutine unpackRoutine)
         {
             this.loggerWrapper = loggerWrapper;
+            this.unpackRoutine = unpackRoutine;
         }
 
         /// <summary>
@@ -64,21 +74,27 @@
         {
             int toReturn = -1;
 
-            this.loggerWrapper.Debug("This is a test debug message.");
-            this.loggerWrapper.Info("This is a test info message.");
-            this.loggerWrapper.Warning("Test warning message.");
-            this.loggerWrapper.Error("Test error.");
-
             try
             {
-                throw new FileLoadException("blurgh");
-            }
-            catch (System.Exception exception)
-            {
-                this.loggerWrapper.Error("Whoops.", exception);
-            }
+                this.loggerWrapper.Debug(
+                    $"Starting the {nameof(IUnpackRoutine)}...");
 
-            toReturn = 0;
+                await this.unpackRoutine.RunAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
+                this.loggerWrapper.Info(
+                    $"{nameof(IUnpackRoutine)} completed with success.");
+
+                toReturn = 0;
+            }
+            catch (Exception exception)
+            {
+                this.loggerWrapper.Error(
+                    $"An unhandled exception was thrown while running the " +
+                    $"{nameof(IUnpackRoutine)}. Exception details are " +
+                    $"included.",
+                    exception);
+            }
 
             return toReturn;
         }
@@ -90,12 +106,22 @@
         {
             int toReturn = -1;
 
+            string sourceStorageConnectionString =
+                options.SourceStorageConnectionString;
+            string sourceStorageFileShareName =
+                options.SourceStorageFileShareName;
+
+            DocumentStorageAdapterSettingsProvider documentStorageAdapterSettingsProvider =
+                new DocumentStorageAdapterSettingsProvider(
+                    sourceStorageConnectionString,
+                    sourceStorageFileShareName);
+
             string logsDirectory = options.LogsDirectory;
 
             LoggerWrapperSettingsProvider loggerWrapperSettingsProvider =
                 new LoggerWrapperSettingsProvider(logsDirectory);
 
-            using (ServiceProvider serviceProvider = CreateServiceProvider(loggerWrapperSettingsProvider))
+            using (ServiceProvider serviceProvider = CreateServiceProvider(documentStorageAdapterSettingsProvider, loggerWrapperSettingsProvider))
             {
                 IProgram program = serviceProvider.GetService<IProgram>();
 
@@ -108,14 +134,18 @@
 
         [ExcludeFromCodeCoverage]
         private static ServiceProvider CreateServiceProvider(
+            DocumentStorageAdapterSettingsProvider documentStorageAdapterSettingsProvider,
             LoggerWrapperSettingsProvider loggerWrapperSettingsProvider)
         {
             ServiceProvider toReturn = null;
 
             IServiceCollection serviceCollection = new ServiceCollection()
+                .AddSingleton<IDocumentStorageAdapterSettingsProvider>(documentStorageAdapterSettingsProvider)
+                .AddScoped<IDocumentStorageAdapter, DocumentStorageAdapter>()
                 .AddSingleton<ILoggerWrapperSettingsProvider>(loggerWrapperSettingsProvider)
                 .AddSingleton<ILoggerWrapper, LoggerWrapper>()
-                .AddScoped<IProgram, Program>();
+                .AddSingleton<IUnpackRoutine, UnpackRoutine>()
+                .AddSingleton<IProgram, Program>();
 
             toReturn = serviceCollection.BuildServiceProvider();
 

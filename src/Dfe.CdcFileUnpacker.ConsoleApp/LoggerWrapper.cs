@@ -6,8 +6,8 @@
     using System.IO;
     using CsvHelper;
     using Dfe.CdcFileUnpacker.ConsoleApp.Models;
+    using Dfe.CdcFileUnpacker.Domain.Definitions;
     using Dfe.CdcFileUnpacker.Domain.Definitions.SettingsProviders;
-    using Dfe.Spi.Common.Logging.Definitions;
 
     /// <summary>
     /// Implements <see cref="ILoggerWrapper" />.
