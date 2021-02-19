@@ -8,7 +8,6 @@
     using Dfe.CdcFileUnpacker.Domain.Definitions;
     using Dfe.CdcFileUnpacker.Domain.Definitions.SettingsProviders;
     using Microsoft.WindowsAzure.Storage;
-    using Microsoft.WindowsAzure.Storage.Auth;
     using Microsoft.WindowsAzure.Storage.File;
 
     /// <summary>
