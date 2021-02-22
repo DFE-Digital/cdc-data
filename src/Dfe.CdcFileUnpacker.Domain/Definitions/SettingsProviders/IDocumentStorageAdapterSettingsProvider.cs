@@ -7,6 +7,22 @@
     public interface IDocumentStorageAdapterSettingsProvider
     {
         /// <summary>
+        /// Gets the destination storage connection string.
+        /// </summary>
+        string DestinationStorageConnectionString
+        {
+            get;
+        }
+
+        /// <summary>
+        /// Gets the destination storage file share name.
+        /// </summary>
+        string DestinationStorageFileShareName
+        {
+            get;
+        }
+
+        /// <summary>
         /// Gets the source stroage connection string.
         /// </summary>
         string SourceStorageConnectionString

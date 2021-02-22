@@ -63,32 +63,32 @@
         /// <inheritdoc />
         public void Debug(string message, Exception exception = null)
         {
-            this.WriteConsole(null, message, exception);
+            WriteConsole(null, message, exception);
             this.WriteFile(nameof(this.Debug), message, exception);
         }
 
         /// <inheritdoc />
         public void Error(string message, Exception exception = null)
         {
-            this.WriteConsole(ConsoleColor.Red, message, exception);
+            WriteConsole(ConsoleColor.Red, message, exception);
             this.WriteFile(nameof(this.Error), message, exception);
         }
 
         /// <inheritdoc />
         public void Info(string message, Exception exception = null)
         {
-            this.WriteConsole(ConsoleColor.Blue, message, exception);
+            WriteConsole(ConsoleColor.Blue, message, exception);
             this.WriteFile(nameof(this.Info), message, exception);
         }
 
         /// <inheritdoc />
         public void Warning(string message, Exception exception = null)
         {
-            this.WriteConsole(ConsoleColor.Yellow, message, exception);
+            WriteConsole(ConsoleColor.Yellow, message, exception);
             this.WriteFile(nameof(this.Warning), message, exception);
         }
 
-        private void WriteConsole(
+        private static void WriteConsole(
             ConsoleColor? consoleColor,
             string message,
             Exception exception = null)

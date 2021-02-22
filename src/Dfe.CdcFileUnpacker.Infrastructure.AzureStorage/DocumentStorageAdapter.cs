@@ -3,6 +3,7 @@
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Net.Mime;
     using System.Threading;
     using System.Threading.Tasks;
     using Dfe.CdcFileUnpacker.Domain.Definitions;
@@ -19,10 +20,11 @@
     {
         private readonly ILoggerWrapper loggerWrapper;
 
-        private readonly CloudFileShare cloudFileShare;
+        private readonly CloudFileShare destinationCloudFileShare;
+        private readonly CloudFileShare sourceCloudFileShare;
         private readonly FileRequestOptions fileRequestOptions;
         private readonly OperationContext operationContext;
-        private readonly StorageCredentials storageCredentials;
+        private readonly StorageCredentials sourceStorageCredentials;
 
         /// <summary>
         /// Initialises a new instance of the
@@ -48,19 +50,37 @@
             string sourceStorageConnectionString =
                 documentStorageAdapterSettingsProvider.SourceStorageConnectionString;
 
-            CloudStorageAccount cloudStorageAccount =
+            CloudStorageAccount sourceCloudStorageAccount =
                 CloudStorageAccount.Parse(sourceStorageConnectionString);
 
-            this.storageCredentials = cloudStorageAccount.Credentials;
+            this.sourceStorageCredentials =
+                sourceCloudStorageAccount.Credentials;
 
-            CloudFileClient cloudFileClient =
-                cloudStorageAccount.CreateCloudFileClient();
+            CloudFileClient sourceCloudFileClient =
+                sourceCloudStorageAccount.CreateCloudFileClient();
 
             string sourceStorageFileShareName =
                 documentStorageAdapterSettingsProvider.SourceStorageFileShareName;
 
-            this.cloudFileShare = cloudFileClient.GetShareReference(
-                sourceStorageFileShareName);
+            this.sourceCloudFileShare =
+                sourceCloudFileClient.GetShareReference(
+                    sourceStorageFileShareName);
+
+            string destinationStorageConnectionString =
+                documentStorageAdapterSettingsProvider.DestinationStorageConnectionString;
+
+            CloudStorageAccount destinationCloudStorageAccount =
+                CloudStorageAccount.Parse(destinationStorageConnectionString);
+
+            CloudFileClient destinationCloudFileClient =
+                destinationCloudStorageAccount.CreateCloudFileClient();
+
+            string destinationStorageFileShareName =
+                documentStorageAdapterSettingsProvider.DestinationStorageFileShareName;
+
+            this.destinationCloudFileShare =
+                destinationCloudFileClient.GetShareReference(
+                    destinationStorageFileShareName);
 
             this.loggerWrapper = loggerWrapper;
 
@@ -83,7 +103,7 @@
             byte[] toReturn = null;
 
             Uri uri = new Uri(absolutePath, UriKind.Absolute);
-            CloudFile cloudFile = new CloudFile(uri, this.storageCredentials);
+            CloudFile cloudFile = new CloudFile(uri, this.sourceStorageCredentials);
 
             await cloudFile.FetchAttributesAsync().ConfigureAwait(false);
 
@@ -151,6 +171,92 @@
             return toReturn;
         }
 
+        /// <inheritdoc />
+        public async Task UploadFileAsync(
+            string[] directoryPath,
+            string filename,
+            string mimeType,
+            IEnumerable<byte> bytes,
+            CancellationToken cancellationToken)
+        {
+            if (directoryPath == null)
+            {
+                throw new ArgumentNullException(nameof(directoryPath));
+            }
+
+            this.loggerWrapper.Debug(
+                $"Getting root directory reference for " +
+                $"\"{this.sourceCloudFileShare.Name}\"...");
+
+            CloudFileDirectory shareRoot =
+                this.destinationCloudFileShare.GetRootDirectoryReference();
+
+            CloudFileDirectory innerDir = shareRoot;
+            bool dirCreated;
+            foreach (string directory in directoryPath)
+            {
+                this.loggerWrapper.Debug(
+                    $"Getting reference to directory \"{directory}\"...");
+
+                innerDir = innerDir.GetDirectoryReference(directory);
+
+                dirCreated = await innerDir.CreateIfNotExistsAsync(
+                    this.fileRequestOptions,
+                    this.operationContext,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (dirCreated)
+                {
+                    this.loggerWrapper.Info(
+                        $"\"{directory}\" did not exist. It has been " +
+                        $"created.");
+                }
+                else
+                {
+                    this.loggerWrapper.Debug(
+                        $"\"{directory}\" exists already.");
+                }
+            }
+
+            CloudFile cloudFile = innerDir.GetFileReference(filename);
+
+            this.loggerWrapper.Debug(
+                $"Uploading {bytes.Count()} {nameof(Byte)}s with filename " +
+                $"\"{filename}\"...");
+
+            byte[] buffer = bytes.ToArray();
+
+            await cloudFile.UploadFromByteArrayAsync(
+                buffer,
+                0,
+                buffer.Length,
+                AccessCondition.GenerateEmptyCondition(),
+                this.fileRequestOptions,
+                this.operationContext,
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"{bytes.Count()} {nameof(Byte)}s uploaded, with filename " +
+                $"\"{filename}\".");
+
+            this.loggerWrapper.Debug(
+                $"Updating content type (\"{mimeType}\") on file...");
+
+            cloudFile.Properties.ContentType = mimeType;
+
+            await cloudFile.SetPropertiesAsync(
+                AccessCondition.GenerateEmptyCondition(),
+                this.fileRequestOptions,
+                this.operationContext,
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"Content type updated to \"{mimeType}\".");
+        }
+
         private async Task<IEnumerable<TListFileItem>> ListFileItems<TListFileItem>(
             string[] directoryPath,
             CancellationToken cancellationToken)
@@ -165,10 +271,10 @@
 
             this.loggerWrapper.Debug(
                 $"Getting root directory reference for " +
-                $"\"{this.cloudFileShare.Name}\"...");
+                $"\"{this.sourceCloudFileShare.Name}\"...");
 
             CloudFileDirectory shareRoot =
-                this.cloudFileShare.GetRootDirectoryReference();
+                this.sourceCloudFileShare.GetRootDirectoryReference();
 
             CloudFileDirectory innerDir = shareRoot;
             foreach (string directory in directoryPath)

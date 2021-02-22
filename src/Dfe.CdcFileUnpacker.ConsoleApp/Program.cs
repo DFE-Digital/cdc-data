@@ -106,6 +106,10 @@
         {
             int toReturn = -1;
 
+            string destinationStorageConnectionString =
+                options.DestinationStorageConnectionString;
+            string destinationStorageFileShareName =
+                options.DestinationStorageFileShareName;
             string sourceStorageConnectionString =
                 options.SourceStorageConnectionString;
             string sourceStorageFileShareName =
@@ -113,6 +117,8 @@
 
             DocumentStorageAdapterSettingsProvider documentStorageAdapterSettingsProvider =
                 new DocumentStorageAdapterSettingsProvider(
+                    destinationStorageConnectionString,
+                    destinationStorageFileShareName,
                     sourceStorageConnectionString,
                     sourceStorageFileShareName);
 

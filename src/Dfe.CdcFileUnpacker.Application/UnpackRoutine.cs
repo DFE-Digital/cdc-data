@@ -25,6 +25,10 @@
 
         private const string SitePlanZipFileName = "a";
 
+        private const string DestinationSitePlanSubDirectory = "Site Plan";
+        private const string DestinationSitePlanMimeType = "application/pdf";
+        private const string DestinationSitePlanFileExtension = ".pdf";
+
         private readonly IDocumentStorageAdapter documentStorageAdapter;
         private readonly ILoggerWrapper loggerWrapper;
 
@@ -179,7 +183,10 @@
                 this.loggerWrapper.Debug(
                     $"Processing file {documentFile}...");
 
-                await this.ProcessFile(documentFile, cancellationToken)
+                await this.ProcessFile(
+                    establishment,
+                    documentFile,
+                    cancellationToken)
                     .ConfigureAwait(false);
 
                 this.loggerWrapper.Info($"Processed file {documentFile}.");
@@ -187,6 +194,7 @@
         }
 
         private async Task ProcessFile(
+            Establishment establishment,
             DocumentFile documentFile,
             CancellationToken cancellationToken)
         {
@@ -206,6 +214,7 @@
                 {
                     case ZipFileType.SitePlan:
                         await this.ProcessSitePlanZip(
+                            establishment,
                             documentFile,
                             cancellationToken)
                             .ConfigureAwait(false);
@@ -228,6 +237,7 @@
         }
 
         private async Task ProcessSitePlanZip(
+            Establishment establishment,
             DocumentFile documentFile,
             CancellationToken cancellationToken)
         {
@@ -264,13 +274,13 @@
 
                     using (Stream stream = zipArchiveEntry.Open())
                     {
-                        sitePlanBytes = new byte[zipArchiveEntry.Length];
+                        using (MemoryStream destinationMemoryStream = new MemoryStream())
+                        {
+                            await stream.CopyToAsync(destinationMemoryStream)
+                                .ConfigureAwait(false);
 
-                        await stream.ReadAsync(
-                            sitePlanBytes,
-                            0,
-                            sitePlanBytes.Length)
-                            .ConfigureAwait(false);
+                            sitePlanBytes = destinationMemoryStream.ToArray();
+                        }
                     }
                 }
             }
@@ -278,6 +288,39 @@
             this.loggerWrapper.Info(
                 $"\"{SitePlanZipFileName}\" extracted from " +
                 $"{nameof(ZipArchive)} ({sitePlanBytes.Length} byte(s)).");
+
+            // Construct a directory for the establishment in the destination
+            // storage.
+            // Should have a URN, as I believe we're filtering this out before.
+            long urn = establishment.Urn.Value;
+            string name = establishment.Name;
+            string program = establishment.Program;
+
+            string destinationEstablishmentDir =
+                string.Format(CultureInfo.InvariantCulture, "{0:00000}", urn) +
+                $" {name} ({program})";
+
+            this.loggerWrapper.Debug(
+                $"{nameof(destinationEstablishmentDir)} = " +
+                $"\"{destinationEstablishmentDir}\"");
+
+            this.loggerWrapper.Debug(
+                $"Sending {nameof(ZipFileType.SitePlan)} to destination " +
+                $"storage...");
+
+            string filename = name + DestinationSitePlanFileExtension;
+
+            await this.documentStorageAdapter.UploadFileAsync(
+                new string[] { destinationEstablishmentDir, DestinationSitePlanSubDirectory, },
+                filename,
+                DestinationSitePlanMimeType,
+                sitePlanBytes,
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"{nameof(ZipFileType.SitePlan)} sent to destination " +
+                $"storage.");
         }
 
         private async Task<IEnumerable<Establishment>> GetEstablishmentsAsync(

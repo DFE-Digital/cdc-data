@@ -23,6 +23,32 @@
         }
 
         /// <summary>
+        /// Gets or sets the destination storage connection string.
+        /// </summary>
+        [Option(
+            "destination-storage-connection-string",
+            Required = true,
+            HelpText = "The destination storage connection string.")]
+        public string DestinationStorageConnectionString
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// Gets or sets the destination storage file share name.
+        /// </summary>
+        [Option(
+            "destination-storage-file-share-name",
+            Default = "cdcdocuments",
+            HelpText = "The destination storage file share name.")]
+        public string DestinationStorageFileShareName
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// Gets or sets the source stroage connection string.
         /// </summary>
         [Option(

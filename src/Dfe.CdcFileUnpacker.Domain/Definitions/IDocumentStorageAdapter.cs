@@ -1,15 +1,27 @@
 ﻿namespace Dfe.CdcFileUnpacker.Domain.Definitions
 {
-    using Dfe.CdcFileUnpacker.Domain.Models;
     using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
+    using Dfe.CdcFileUnpacker.Domain.Models;
 
     /// <summary>
     /// Describes the operations of the document storage adapter.
     /// </summary>
     public interface IDocumentStorageAdapter
     {
+        /// <summary>
+        /// Downloads a file for a given <paramref name="absolutePath" />.
+        /// </summary>
+        /// <param name="absolutePath">
+        /// An absolute path to the file.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// An instance of type <see cref="CancellationToken" />.
+        /// </param>
+        /// <returns>
+        /// An instance of type <see cref="IEnumerable{Byte}" />.
+        /// </returns>
         Task<IEnumerable<byte>> DownloadFileAsync(
             string absolutePath,
             CancellationToken cancellationToken);
@@ -46,6 +58,35 @@
         /// </returns>
         Task<IEnumerable<DocumentFile>> ListFilesAsync(
             string[] directoryPath,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Updates a file to the <paramref name="directoryPath" />.
+        /// </summary>
+        /// <param name="directoryPath">
+        /// An array/path to a directory.
+        /// </param>
+        /// <param name="filename">
+        /// The name of the file to upload as.
+        /// </param>
+        /// <param name="mimeType">
+        /// The mimetype of the file to upload.
+        /// </param>
+        /// <param name="bytes">
+        /// The content of the file as an instance of
+        /// <see cref="IEnumerable{Byte}" />.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// An instance of <see cref="CancellationToken" />.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Task"/> representing the asynchronous operation.
+        /// </returns>
+        Task UploadFileAsync(
+            string[] directoryPath,
+            string filename,
+            string mimeType,
+            IEnumerable<byte> bytes,
             CancellationToken cancellationToken);
     }
 }
