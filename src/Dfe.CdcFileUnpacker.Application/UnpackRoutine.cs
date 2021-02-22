@@ -3,6 +3,8 @@
     using System;
     using System.Collections.Generic;
     using System.Globalization;
+    using System.IO;
+    using System.IO.Compression;
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
@@ -20,6 +22,8 @@
         private const string RootCdcfeDirectory = "CDCFE";
 
         private const string SitePlanFilenameSuffix = "_application_pdf.zip";
+
+        private const string SitePlanZipFileName = "a";
 
         private readonly IDocumentStorageAdapter documentStorageAdapter;
         private readonly ILoggerWrapper loggerWrapper;
@@ -167,7 +171,8 @@
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            this.loggerWrapper.Info($"{documentFiles.Count()} file(s) returned.");
+            this.loggerWrapper.Info(
+                $"{documentFiles.Count()} file(s) returned.");
 
             foreach (DocumentFile documentFile in documentFiles)
             {
@@ -195,20 +200,24 @@
             if (zipFileType.HasValue)
             {
                 this.loggerWrapper.Info(
-                    $"{nameof(zipFileType)} = {zipFileType}");
+                    $"{nameof(zipFileType)} = {zipFileType.Value}");
 
-                this.loggerWrapper.Debug($"Downloading {documentFile}...");
+                switch (zipFileType.Value)
+                {
+                    case ZipFileType.SitePlan:
+                        await this.ProcessSitePlanZip(
+                            documentFile,
+                            cancellationToken)
+                            .ConfigureAwait(false);
+                        break;
 
-                string absolutePath = documentFile.AbsolutePath;
-                IEnumerable<byte> downloadedBytes =
-                    await this.documentStorageAdapter.DownloadFileAsync(
-                        absolutePath,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-
-                this.loggerWrapper.Info(
-                    $"Downloaded {documentFile} ({downloadedBytes.Count()} " +
-                    $"byte(s)).");
+                    default:
+                        this.loggerWrapper.Error(
+                            "Able to determine the zip file type, but the " +
+                            "processing functionality has not been " +
+                            "implemented yet.");
+                        break;
+                }
             }
             else
             {
@@ -216,6 +225,59 @@
                     $"Could not determine {nameof(ZipFileType)} for " +
                     $"\"{name}\". It will be ignored.");
             }
+        }
+
+        private async Task ProcessSitePlanZip(
+            DocumentFile documentFile,
+            CancellationToken cancellationToken)
+        {
+            this.loggerWrapper.Debug($"Downloading {documentFile}...");
+
+            string absolutePath = documentFile.AbsolutePath;
+            IEnumerable<byte> downloadedBytes =
+                await this.documentStorageAdapter.DownloadFileAsync(
+                    absolutePath,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"Downloaded {documentFile} ({downloadedBytes.Count()} " +
+                $"byte(s)).");
+
+            // Then unpack the zip file.
+            byte[] downloadedBytesArray = downloadedBytes.ToArray();
+
+            this.loggerWrapper.Debug(
+                $"Opening file as a {nameof(ZipArchive)}...");
+
+            byte[] sitePlanBytes = null;
+            using (MemoryStream memoryStream = new MemoryStream(downloadedBytesArray))
+            {
+                using (ZipArchive zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Read))
+                {
+                    this.loggerWrapper.Debug(
+                        $"Opened as {nameof(ZipArchive)}. Extracting file " +
+                        $"\"{SitePlanZipFileName}\"...");
+
+                    ZipArchiveEntry zipArchiveEntry = zipArchive.GetEntry(
+                        SitePlanZipFileName);
+
+                    using (Stream stream = zipArchiveEntry.Open())
+                    {
+                        sitePlanBytes = new byte[zipArchiveEntry.Length];
+
+                        await stream.ReadAsync(
+                            sitePlanBytes,
+                            0,
+                            sitePlanBytes.Length)
+                            .ConfigureAwait(false);
+                    }
+                }
+            }
+
+            this.loggerWrapper.Info(
+                $"\"{SitePlanZipFileName}\" extracted from " +
+                $"{nameof(ZipArchive)} ({sitePlanBytes.Length} byte(s)).");
         }
 
         private async Task<IEnumerable<Establishment>> GetEstablishmentsAsync(
