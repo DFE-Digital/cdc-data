@@ -62,17 +62,99 @@
             bool filterResults,
             CancellationToken cancellationToken)
         {
+            // First, parse the establishment folders, and filter down to the
+            // directories we want to scan.
+            this.loggerWrapper.Debug(
+                $"Pulling back list of all {nameof(Establishment)}(s) to " +
+                $"process...");
+
+            IEnumerable<Establishment> establishments =
+                await this.GetEstablishmentsAsync(
+                    rootDirectory,
+                    filterResults,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"{establishments.Count()} {nameof(Establishment)}(s) " +
+                $"parsed.");
+
+            // Second, process each establishment in turn.
+            string directory = null;
+            foreach (Establishment establishment in establishments)
+            {
+                // TODO: Update to be parallel. Get it working first.
+                directory = establishment.Directory;
+
+                await this.UnpackMigrateFiles(
+                    new string[] { rootDirectory, directory },
+                    establishment,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async Task UnpackMigrateFiles(
+            string[] directoryPath,
+            Establishment establishment,
+            CancellationToken cancellationToken)
+        {
+            string topLevelDirectory = directoryPath.Last();
+
+            // First, delve down recursively.
+            this.loggerWrapper.Debug(
+                $"Pulling inner directories within \"{topLevelDirectory}\"...");
+
+            IEnumerable<string> innerDirectories =
+                await this.documentStorageAdapter.ListDirectoriesAsync(
+                    directoryPath,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"{innerDirectories.Count()} inner directory(s) returned.");
+
+            this.loggerWrapper.Debug("Looping through inner directories...");
+
+            string[] innerDirectoryPath = null;
+            foreach (string innerDirectory in innerDirectories)
+            {
+                innerDirectoryPath = directoryPath
+                    .Concat(new string[] { innerDirectory })
+                    .ToArray();
+
+                this.loggerWrapper.Debug(
+                    $"Processing inner directory \"{innerDirectory}\"...");
+
+                await this.UnpackMigrateFiles(
+                    innerDirectoryPath,
+                    establishment,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+
+                this.loggerWrapper.Info(
+                    $"Inner directory \"{innerDirectory}\" processed.");
+            }
+
+            // TODO: Then, check for files.
+        }
+
+        private async Task<IEnumerable<Establishment>> GetEstablishmentsAsync(
+            string rootDirectory,
+            bool filterResults,
+            CancellationToken cancellationToken)
+        {
+            List<Establishment> toReturn = null;
+
             this.loggerWrapper.Debug(
                 $"Pulling back all directory names in the " +
                 $"\"{rootDirectory}\" directory...");
 
             IEnumerable<string> directoryNames =
                 await this.documentStorageAdapter.ListDirectoriesAsync(
-                    rootDirectory,
+                    new string[] { rootDirectory },
                     cancellationToken)
                 .ConfigureAwait(false);
-
-            string list = string.Join(Environment.NewLine, directoryNames);
 
             this.loggerWrapper.Info(
                     $"Pulled back {directoryNames.Count()} directory " +
@@ -82,12 +164,12 @@
                 $"Converting directory names to {nameof(Establishment)} " +
                 $"instances...");
 
-            List<Establishment> establishments = directoryNames
+            toReturn = directoryNames
                 .Select(this.ConvertEstablishmentStringToModel)
                 .ToList();
 
             this.loggerWrapper.Info(
-                $"{establishments.Count} {nameof(Establishment)}s " +
+                $"{toReturn.Count} {nameof(Establishment)}s " +
                 $"obtained.");
 
             this.loggerWrapper.Debug(
@@ -96,19 +178,19 @@
 
             if (filterResults)
             {
-                establishments = establishments
+                toReturn = toReturn
                     .Where(x => x.Program == rootDirectory)
                     .ToList();
             }
 
-            establishments = establishments
+            toReturn = toReturn
                 .Where(x => x.Urn.HasValue)
                 .ToList();
 
             this.loggerWrapper.Info(
-                $"Filtered {establishments.Count} result(s).");
+                $"Filtered {toReturn.Count} result(s).");
 
-            list = string.Join(Environment.NewLine, establishments);
+            return toReturn;
         }
 
         private Establishment ConvertEstablishmentStringToModel(
@@ -162,6 +244,7 @@
 
             toReturn = new Establishment()
             {
+                Directory = establishmentStr,
                 Urn = urn,
                 Name = name,
                 Program = program,

@@ -6,6 +6,15 @@
     public class Establishment : ModelsBase
     {
         /// <summary>
+        /// Gets or sets the original directory.
+        /// </summary>
+        public string Directory
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// Gets or sets the URN.
         /// </summary>
         public long? Urn

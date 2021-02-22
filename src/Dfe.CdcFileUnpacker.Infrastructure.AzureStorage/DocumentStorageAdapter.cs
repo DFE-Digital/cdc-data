@@ -72,23 +72,31 @@
 
         /// <inheritdoc />
         public async Task<IEnumerable<string>> ListDirectoriesAsync(
-            string rootDirectory,
+            string[] directoryPath,
             CancellationToken cancellationToken)
         {
             IEnumerable<string> toReturn = null;
+
+            if (directoryPath == null)
+            {
+                throw new ArgumentNullException(nameof(directoryPath));
+            }
 
             this.loggerWrapper.Debug(
                 $"Getting root directory reference for " +
                 $"\"{this.cloudFileShare.Name}\"...");
 
-            CloudFileDirectory root =
+            CloudFileDirectory shareRoot =
                 this.cloudFileShare.GetRootDirectoryReference();
 
-            this.loggerWrapper.Debug(
-                $"Getting reference to root directory \"{rootDirectory}\"...");
+            CloudFileDirectory innerDir = shareRoot;
+            foreach (string directory in directoryPath)
+            {
+                this.loggerWrapper.Debug(
+                    $"Getting reference to directory \"{directory}\"...");
 
-            CloudFileDirectory innerDir = root.GetDirectoryReference(
-                rootDirectory);
+                innerDir = innerDir.GetDirectoryReference(directory);
+            }
 
             this.loggerWrapper.Debug(
                 "Beginning listing of files/directories...");
@@ -127,7 +135,8 @@
                 cloudFileDirectories.AddRange(castedResults);
 
                 this.loggerWrapper.Info(
-                    $"Total filtered results so far: {cloudFileDirectories.Count}.");
+                    $"Total filtered results so far: " +
+                    $"{cloudFileDirectories.Count}.");
 
                 fileContinuationToken = fileResultSegment.ContinuationToken;
 

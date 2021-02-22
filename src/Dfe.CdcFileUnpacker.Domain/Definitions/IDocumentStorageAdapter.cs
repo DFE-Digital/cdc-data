@@ -11,10 +11,10 @@
     {
         /// <summary>
         /// Lists the names of directories for a given
-        /// <paramref name="rootDirectory" />.
+        /// <paramref name="directoryPath" />.
         /// </summary>
-        /// <param name="rootDirectory">
-        /// The root directory in which to list directories for.
+        /// <param name="directoryPath">
+        /// An array/path to a directory.
         /// </param>
         /// <param name="cancellationToken">
         /// An instance of type <see cref="CancellationToken" />.
@@ -23,7 +23,7 @@
         /// An instance of type <see cref="IEnumerable{String}" />.
         /// </returns>
         Task<IEnumerable<string>> ListDirectoriesAsync(
-            string rootDirectory,
+            string[] directoryPath,
             CancellationToken cancellationToken);
     }
 }
