@@ -2,6 +2,7 @@
 {
     using System;
     using System.Diagnostics.CodeAnalysis;
+    using System.Globalization;
     using System.Threading;
     using System.Threading.Tasks;
     using CommandLine;
@@ -20,6 +21,8 @@
     /// </summary>
     public class Program : IProgram
     {
+        private const string ConsoleTitleFormat = "[CdcFileUnpacker] {0}";
+
         private readonly ILoggerWrapper loggerWrapper;
         private readonly IUnpackRoutine unpackRoutine;
 
@@ -38,6 +41,8 @@
         {
             this.loggerWrapper = loggerWrapper;
             this.unpackRoutine = unpackRoutine;
+
+            this.unpackRoutine.CurrentStatusUpdated += this.UnpackRoutine_CurrentStatusUpdated;
         }
 
         /// <summary>
@@ -156,6 +161,20 @@
             toReturn = serviceCollection.BuildServiceProvider();
 
             return toReturn;
+        }
+
+        private void UnpackRoutine_CurrentStatusUpdated(
+            object sender,
+            CurrentStatusUpdatedEventArgs e)
+        {
+            string message = e.Message;
+
+            message = string.Format(
+                CultureInfo.InvariantCulture,
+                ConsoleTitleFormat,
+                message);
+
+            Console.Title = message;
         }
     }
 }

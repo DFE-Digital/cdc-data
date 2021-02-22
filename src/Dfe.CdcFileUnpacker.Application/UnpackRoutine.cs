@@ -51,6 +51,9 @@
         }
 
         /// <inheritdoc />
+        public event EventHandler<CurrentStatusUpdatedEventArgs> CurrentStatusUpdated;
+
+        /// <inheritdoc />
         public async Task RunAsync(CancellationToken cancellationToken)
         {
             // 1) Iterate and parse the folder names in the CDC and CDCFE
@@ -94,6 +97,9 @@
         {
             // First, parse the establishment folders, and filter down to the
             // directories we want to scan.
+            this.UpdateCurrentStatus(
+                $"Initialising unpack routine (\"{rootDirectory}\")...");
+
             this.loggerWrapper.Debug(
                 $"Pulling back list of all {nameof(Establishment)}(s) to " +
                 $"process...");
@@ -110,17 +116,32 @@
                 $"parsed.");
 
             // Second, process each establishment in turn.
+            int totalEstablishements = establishments.Count();
+
+            double currentPercentage = 0;
+
+            int establishmentCounter = 0;
+
             string directory = null;
             foreach (Establishment establishment in establishments)
             {
+                currentPercentage = (establishmentCounter / (double)totalEstablishements) * 100;
+
                 // TODO: Update to be parallel. Get it working first.
                 directory = establishment.Directory;
+
+                this.UpdateCurrentStatus(
+                    $"Processing \"{directory}\" - " +
+                    string.Format(CultureInfo.InvariantCulture, "{0:N2}%", currentPercentage) +
+                    $" of root \"{rootDirectory}\"...");
 
                 await this.UnpackMigrateFiles(
                     new string[] { rootDirectory, directory },
                     establishment,
                     cancellationToken)
                     .ConfigureAwait(false);
+
+                establishmentCounter++;
             }
         }
 
@@ -375,6 +396,20 @@
                 $"Filtered {toReturn.Count} result(s).");
 
             return toReturn;
+        }
+
+        private void UpdateCurrentStatus(string message)
+        {
+            if (this.CurrentStatusUpdated != null)
+            {
+                CurrentStatusUpdatedEventArgs currentStatusUpdatedEventArgs =
+                    new CurrentStatusUpdatedEventArgs()
+                    {
+                        Message = message,
+                    };
+
+                this.CurrentStatusUpdated(this, currentStatusUpdatedEventArgs);
+            }
         }
 
         private Establishment ConvertEstablishmentStringToModel(

@@ -1,5 +1,6 @@
 ﻿namespace Dfe.CdcFileUnpacker.Application.Definitions
 {
+    using System;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -8,6 +9,11 @@
     /// </summary>
     public interface IUnpackRoutine
     {
+        /// <summary>
+        /// Event is raised when the current status is updated.
+        /// </summary>
+        event EventHandler<CurrentStatusUpdatedEventArgs> CurrentStatusUpdated;
+
         /// <summary>
         /// Runs the unpack routine.
         /// </summary>
