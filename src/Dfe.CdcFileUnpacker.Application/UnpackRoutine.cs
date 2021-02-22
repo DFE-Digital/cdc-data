@@ -136,7 +136,18 @@
                     $"Inner directory \"{innerDirectory}\" processed.");
             }
 
-            // TODO: Then, check for files.
+            this.loggerWrapper.Debug(
+                $"Now scanning for files in \"{topLevelDirectory}\"...");
+
+            IEnumerable<string> innerFiles =
+                await this.documentStorageAdapter.ListFilesAsync(
+                    directoryPath,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info($"{innerFiles.Count()} file(s) returned.");
+
+            // TODO: Check each filename, and process according to structure.
         }
 
         private async Task<IEnumerable<Establishment>> GetEstablishmentsAsync(

@@ -25,5 +25,22 @@
         Task<IEnumerable<string>> ListDirectoriesAsync(
             string[] directoryPath,
             CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Lists the names of files for a given
+        /// <paramref name="directoryPath" />.
+        /// </summary>
+        /// <param name="directoryPath">
+        /// An array/path to a directory.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// An instance of type <see cref="CancellationToken" />.
+        /// </param>
+        /// <returns>
+        /// An instance of type <see cref="IEnumerable{String}" />.
+        /// </returns>
+        Task<IEnumerable<string>> ListFilesAsync(
+            string[] directoryPath,
+            CancellationToken cancellationToken);
     }
 }

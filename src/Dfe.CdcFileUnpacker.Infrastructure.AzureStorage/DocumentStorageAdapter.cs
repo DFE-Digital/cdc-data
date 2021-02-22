@@ -77,6 +77,50 @@
         {
             IEnumerable<string> toReturn = null;
 
+            IEnumerable<CloudFileDirectory> cloudFileDirectories =
+                await this.ListFileItems<CloudFileDirectory>(
+                    directoryPath,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"Listing of {nameof(CloudFileDirectory)}s complete. " +
+                $"Returning names...");
+
+            toReturn = cloudFileDirectories.Select(x => x.Name);
+
+            return toReturn;
+        }
+
+        /// <inheritdoc />
+        public async Task<IEnumerable<string>> ListFilesAsync(
+            string[] directoryPath,
+            CancellationToken cancellationToken)
+        {
+            IEnumerable<string> toReturn = null;
+
+            IEnumerable<CloudFile> cloudFileDirectories =
+                await this.ListFileItems<CloudFile>(
+                    directoryPath,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"Listing of {nameof(CloudFile)}s complete. " +
+                $"Returning names...");
+
+            toReturn = cloudFileDirectories.Select(x => x.Name);
+
+            return toReturn;
+        }
+
+        private async Task<IEnumerable<TListFileItem>> ListFileItems<TListFileItem>(
+            string[] directoryPath,
+            CancellationToken cancellationToken)
+            where TListFileItem : IListFileItem
+        {
+            IEnumerable<TListFileItem> toReturn = null;
+
             if (directoryPath == null)
             {
                 throw new ArgumentNullException(nameof(directoryPath));
@@ -101,11 +145,10 @@
             this.loggerWrapper.Debug(
                 "Beginning listing of files/directories...");
 
-            List<CloudFileDirectory> cloudFileDirectories =
-                new List<CloudFileDirectory>();
+            List<TListFileItem> listFileItems = new List<TListFileItem>();
 
             IEnumerable<IListFileItem> results = null;
-            IEnumerable<CloudFileDirectory> castedResults = null;
+            IEnumerable<TListFileItem> castedResults = null;
             FileContinuationToken fileContinuationToken = null;
             do
             {
@@ -125,18 +168,18 @@
                     $"directories...");
 
                 castedResults = results
-                    .Where(x => x is CloudFileDirectory)
-                    .Cast<CloudFileDirectory>();
+                    .Where(x => x is TListFileItem)
+                    .Cast<TListFileItem>();
 
                 this.loggerWrapper.Debug(
                     $"Adding {results.Count()} filtered results to the " +
                     $"overall results list...");
 
-                cloudFileDirectories.AddRange(castedResults);
+                listFileItems.AddRange(castedResults);
 
                 this.loggerWrapper.Info(
                     $"Total filtered results so far: " +
-                    $"{cloudFileDirectories.Count}.");
+                    $"{listFileItems.Count}.");
 
                 fileContinuationToken = fileResultSegment.ContinuationToken;
 
@@ -149,11 +192,7 @@
             }
             while (fileContinuationToken != null);
 
-            this.loggerWrapper.Info(
-                $"Listing of {nameof(CloudFileDirectory)}s complete. " +
-                $"Returning names...");
-
-            toReturn = cloudFileDirectories.Select(x => x.Name);
+            toReturn = listFileItems.ToList();
 
             return toReturn;
         }
