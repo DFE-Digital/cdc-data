@@ -18,6 +18,8 @@
         private const string RootCdcDirectory = "CDC";
         private const string RootCdcfeDirectory = "CDCFE";
 
+        private const string SitePlanFilenameSuffix = "_application_pdf.zip";
+
         private readonly IDocumentStorageAdapter documentStorageAdapter;
         private readonly ILoggerWrapper loggerWrapper;
 
@@ -147,7 +149,48 @@
 
             this.loggerWrapper.Info($"{innerFiles.Count()} file(s) returned.");
 
-            // TODO: Check each filename, and process according to structure.
+            ZipFileType? zipFileType = null;
+            foreach (string filename in innerFiles)
+            {
+                this.loggerWrapper.Debug(
+                    $"Determining the {nameof(ZipFileType)} for " +
+                    $"\"{filename}\"...");
+
+                zipFileType = this.GetZipFileType(filename);
+
+                if (zipFileType.HasValue)
+                {
+                    this.loggerWrapper.Info(
+                        $"{nameof(zipFileType)} = {zipFileType}");
+
+                    // TODO: Process ZIP file based on type.
+                }
+                else
+                {
+                    this.loggerWrapper.Warning(
+                        $"Could not determine {nameof(ZipFileType)} for " +
+                        $"\"{filename}\". It will be ignored.");
+                }
+            }
+        }
+
+        private ZipFileType? GetZipFileType(string zipFileName)
+        {
+            ZipFileType? toReturn = null;
+
+            // The filename should be in the format
+            // GUID_mimetype.zip
+            if (zipFileName.EndsWith(SitePlanFilenameSuffix, StringComparison.InvariantCulture))
+            {
+                toReturn = ZipFileType.SitePlan;
+            }
+            else
+            {
+                // Other file types. If toReturn == null, then we don't know
+                // how to deal with it.
+            }
+
+            return toReturn;
         }
 
         private async Task<IEnumerable<Establishment>> GetEstablishmentsAsync(
