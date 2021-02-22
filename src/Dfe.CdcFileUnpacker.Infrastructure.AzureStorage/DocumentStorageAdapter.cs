@@ -7,7 +7,9 @@
     using System.Threading.Tasks;
     using Dfe.CdcFileUnpacker.Domain.Definitions;
     using Dfe.CdcFileUnpacker.Domain.Definitions.SettingsProviders;
+    using Dfe.CdcFileUnpacker.Domain.Models;
     using Microsoft.WindowsAzure.Storage;
+    using Microsoft.WindowsAzure.Storage.Auth;
     using Microsoft.WindowsAzure.Storage.File;
 
     /// <summary>
@@ -20,6 +22,7 @@
         private readonly CloudFileShare cloudFileShare;
         private readonly FileRequestOptions fileRequestOptions;
         private readonly OperationContext operationContext;
+        private readonly StorageCredentials storageCredentials;
 
         /// <summary>
         /// Initialises a new instance of the
@@ -48,6 +51,8 @@
             CloudStorageAccount cloudStorageAccount =
                 CloudStorageAccount.Parse(sourceStorageConnectionString);
 
+            this.storageCredentials = cloudStorageAccount.Credentials;
+
             CloudFileClient cloudFileClient =
                 cloudStorageAccount.CreateCloudFileClient();
 
@@ -68,6 +73,33 @@
             {
                 // Just default, for now.
             };
+        }
+
+        /// <inheritdoc />
+        public async Task<IEnumerable<byte>> DownloadFileAsync(
+            string absolutePath,
+            CancellationToken cancellationToken)
+        {
+            byte[] toReturn = null;
+
+            Uri uri = new Uri(absolutePath, UriKind.Absolute);
+            CloudFile cloudFile = new CloudFile(uri, this.storageCredentials);
+
+            await cloudFile.FetchAttributesAsync().ConfigureAwait(false);
+
+            toReturn = new byte[cloudFile.Properties.Length];
+
+            this.loggerWrapper.Debug(
+                $"Downloading \"{absolutePath}\" ({toReturn.Length} " +
+                $"byte(s))...");
+
+            await cloudFile.DownloadToByteArrayAsync(toReturn, 0)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"Downloaded \"{absolutePath}\" ({toReturn.Length} byte(s)).");
+
+            return toReturn;
         }
 
         /// <inheritdoc />
@@ -93,11 +125,11 @@
         }
 
         /// <inheritdoc />
-        public async Task<IEnumerable<string>> ListFilesAsync(
+        public async Task<IEnumerable<DocumentFile>> ListFilesAsync(
             string[] directoryPath,
             CancellationToken cancellationToken)
         {
-            IEnumerable<string> toReturn = null;
+            IEnumerable<DocumentFile> toReturn = null;
 
             IEnumerable<CloudFile> cloudFileDirectories =
                 await this.ListFileItems<CloudFile>(
@@ -109,7 +141,12 @@
                 $"Listing of {nameof(CloudFile)}s complete. " +
                 $"Returning names...");
 
-            toReturn = cloudFileDirectories.Select(x => x.Name);
+            toReturn = cloudFileDirectories.Select(x =>
+                new DocumentFile()
+                {
+                    AbsolutePath = x.Uri.ToString(),
+                    Name = x.Name,
+                });
 
             return toReturn;
         }

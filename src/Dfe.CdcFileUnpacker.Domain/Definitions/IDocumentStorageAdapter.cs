@@ -1,5 +1,6 @@
 ﻿namespace Dfe.CdcFileUnpacker.Domain.Definitions
 {
+    using Dfe.CdcFileUnpacker.Domain.Models;
     using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
@@ -9,6 +10,10 @@
     /// </summary>
     public interface IDocumentStorageAdapter
     {
+        Task<IEnumerable<byte>> DownloadFileAsync(
+            string absolutePath,
+            CancellationToken cancellationToken);
+
         /// <summary>
         /// Lists the names of directories for a given
         /// <paramref name="directoryPath" />.
@@ -37,9 +42,9 @@
         /// An instance of type <see cref="CancellationToken" />.
         /// </param>
         /// <returns>
-        /// An instance of type <see cref="IEnumerable{String}" />.
+        /// An instance of type <see cref="IEnumerable{DocumentFile}" />.
         /// </returns>
-        Task<IEnumerable<string>> ListFilesAsync(
+        Task<IEnumerable<DocumentFile>> ListFilesAsync(
             string[] directoryPath,
             CancellationToken cancellationToken);
     }

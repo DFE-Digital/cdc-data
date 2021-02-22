@@ -9,6 +9,7 @@
     using Dfe.CdcFileUnpacker.Application.Definitions;
     using Dfe.CdcFileUnpacker.Application.Models;
     using Dfe.CdcFileUnpacker.Domain.Definitions;
+    using Dfe.CdcFileUnpacker.Domain.Models;
 
     /// <summary>
     /// Implements <see cref="IUnpackRoutine" />.
@@ -57,6 +58,25 @@
                 false,
                 cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        private static ZipFileType? GetZipFileType(string zipFileName)
+        {
+            ZipFileType? toReturn = null;
+
+            // The filename should be in the format
+            // GUID_mimetype.zip
+            if (zipFileName.EndsWith(SitePlanFilenameSuffix, StringComparison.InvariantCulture))
+            {
+                toReturn = ZipFileType.SitePlan;
+            }
+            else
+            {
+                // Other file types. If toReturn == null, then we don't know
+                // how to deal with it.
+            }
+
+            return toReturn;
         }
 
         private async Task ProcessRootDirectory(
@@ -141,56 +161,61 @@
             this.loggerWrapper.Debug(
                 $"Now scanning for files in \"{topLevelDirectory}\"...");
 
-            IEnumerable<string> innerFiles =
+            IEnumerable<DocumentFile> documentFiles =
                 await this.documentStorageAdapter.ListFilesAsync(
                     directoryPath,
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            this.loggerWrapper.Info($"{innerFiles.Count()} file(s) returned.");
+            this.loggerWrapper.Info($"{documentFiles.Count()} file(s) returned.");
 
-            ZipFileType? zipFileType = null;
-            foreach (string filename in innerFiles)
+            foreach (DocumentFile documentFile in documentFiles)
             {
                 this.loggerWrapper.Debug(
-                    $"Determining the {nameof(ZipFileType)} for " +
-                    $"\"{filename}\"...");
+                    $"Processing file {documentFile}...");
 
-                zipFileType = this.GetZipFileType(filename);
+                await this.ProcessFile(documentFile, cancellationToken)
+                    .ConfigureAwait(false);
 
-                if (zipFileType.HasValue)
-                {
-                    this.loggerWrapper.Info(
-                        $"{nameof(zipFileType)} = {zipFileType}");
-
-                    // TODO: Process ZIP file based on type.
-                }
-                else
-                {
-                    this.loggerWrapper.Warning(
-                        $"Could not determine {nameof(ZipFileType)} for " +
-                        $"\"{filename}\". It will be ignored.");
-                }
+                this.loggerWrapper.Info($"Processed file {documentFile}.");
             }
         }
 
-        private ZipFileType? GetZipFileType(string zipFileName)
+        private async Task ProcessFile(
+            DocumentFile documentFile,
+            CancellationToken cancellationToken)
         {
-            ZipFileType? toReturn = null;
+            this.loggerWrapper.Debug(
+                $"Determining the {nameof(ZipFileType)} for " +
+                $"{documentFile}...");
 
-            // The filename should be in the format
-            // GUID_mimetype.zip
-            if (zipFileName.EndsWith(SitePlanFilenameSuffix, StringComparison.InvariantCulture))
+            string name = documentFile.Name;
+
+            ZipFileType? zipFileType = GetZipFileType(name);
+            if (zipFileType.HasValue)
             {
-                toReturn = ZipFileType.SitePlan;
+                this.loggerWrapper.Info(
+                    $"{nameof(zipFileType)} = {zipFileType}");
+
+                this.loggerWrapper.Debug($"Downloading {documentFile}...");
+
+                string absolutePath = documentFile.AbsolutePath;
+                IEnumerable<byte> downloadedBytes =
+                    await this.documentStorageAdapter.DownloadFileAsync(
+                        absolutePath,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+
+                this.loggerWrapper.Info(
+                    $"Downloaded {documentFile} ({downloadedBytes.Count()} " +
+                    $"byte(s)).");
             }
             else
             {
-                // Other file types. If toReturn == null, then we don't know
-                // how to deal with it.
+                this.loggerWrapper.Warning(
+                    $"Could not determine {nameof(ZipFileType)} for " +
+                    $"\"{name}\". It will be ignored.");
             }
-
-            return toReturn;
         }
 
         private async Task<IEnumerable<Establishment>> GetEstablishmentsAsync(
