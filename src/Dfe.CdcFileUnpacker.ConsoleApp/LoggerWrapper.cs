@@ -35,57 +35,57 @@
                     nameof(loggerWrapperSettingsProvider));
             }
 
-            string logsDirectory = loggerWrapperSettingsProvider.LogsDirectory;
-
-            string logFilename = DateTime.UtcNow.ToString(
-                LogFilenameDateTimeFormat,
-                CultureInfo.InvariantCulture);
-
-            logFilename = $"{logFilename}.log";
-
-            this.logFilePath = $"{logsDirectory}\\{logFilename}";
-
-            if (!Directory.Exists(logsDirectory))
-            {
-                Directory.CreateDirectory(logsDirectory);
-            }
-
-            using (StreamWriter streamWriter = new StreamWriter(this.logFilePath))
-            {
-                using (CsvWriter csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
-                {
-                    csvWriter.WriteHeader<LogMessage>();
-                    csvWriter.NextRecord();
-                }
-            }
+            // string logsDirectory = loggerWrapperSettingsProvider.LogsDirectory;
+            // 
+            // string logFilename = DateTime.UtcNow.ToString(
+            //     LogFilenameDateTimeFormat,
+            //     CultureInfo.InvariantCulture);
+            // 
+            // logFilename = $"{logFilename}.log";
+            // 
+            // this.logFilePath = $"{logsDirectory}\\{logFilename}";
+            // 
+            // if (!Directory.Exists(logsDirectory))
+            // {
+            //     Directory.CreateDirectory(logsDirectory);
+            // }
+            // 
+            // using (StreamWriter streamWriter = new StreamWriter(this.logFilePath))
+            // {
+            //     using (CsvWriter csvWriter = new CsvWriter(streamWriter, CultureInfo.InvariantCulture))
+            //     {
+            //         csvWriter.WriteHeader<LogMessage>();
+            //         csvWriter.NextRecord();
+            //     }
+            // }
         }
 
         /// <inheritdoc />
         public void Debug(string message, Exception exception = null)
         {
             // this.WriteFile(nameof(this.Debug), message, exception);
-            WriteConsole(null, message, exception);
+            // WriteConsole(null, message, exception);
         }
 
         /// <inheritdoc />
         public void Error(string message, Exception exception = null)
         {
             // this.WriteFile(nameof(this.Error), message, exception);
-            WriteConsole(ConsoleColor.Red, message, exception);
+            // WriteConsole(ConsoleColor.Red, message, exception);
         }
 
         /// <inheritdoc />
         public void Info(string message, Exception exception = null)
         {
             // this.WriteFile(nameof(this.Info), message, exception);
-            WriteConsole(ConsoleColor.Blue, message, exception);
+            // WriteConsole(ConsoleColor.Blue, message, exception);
         }
 
         /// <inheritdoc />
         public void Warning(string message, Exception exception = null)
         {
             // this.WriteFile(nameof(this.Warning), message, exception);
-            WriteConsole(ConsoleColor.Yellow, message, exception);
+            // WriteConsole(ConsoleColor.Yellow, message, exception);
         }
 
         private static void WriteConsole(

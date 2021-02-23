@@ -41,8 +41,6 @@
         private readonly ILoggerWrapper loggerWrapper;
         private readonly IUnpackRoutineSettingsProvider unpackRoutineSettingsProvider;
 
-        private int establishmentCounter;
-
         /// <summary>
         /// Initialises a new instance of the <see cref="UnpackRoutine" />
         /// class.
@@ -137,7 +135,7 @@
             // Second, process each establishment in turn.
             int totalEstablishements = establishments.Count();
 
-            this.establishmentCounter = 0;
+            int establishmentCounter = 0;
 
             byte degreeOfParallelism =
                 this.unpackRoutineSettingsProvider.DegreeOfParallelism;
@@ -166,9 +164,18 @@
                     this.ProcessEstablishment(
                         semaphoreSlim,
                         rootDirectory,
-                        totalEstablishements,
                         establishment,
                         cancellationToken));
+
+                establishmentCounter++;
+
+                double currentPercentage = (establishmentCounter / (double)totalEstablishements) * 100;
+
+                this.UpdateCurrentStatus(
+                    $"Started processing of establishment " +
+                    $"{establishmentCounter}/{totalEstablishements} - " +
+                    string.Format(CultureInfo.InvariantCulture, "{0:N2}%", currentPercentage) +
+                    $" of root \"{rootDirectory}\"...");
 
                 tasks.Add(task);
             }
@@ -182,20 +189,12 @@
         private async Task ProcessEstablishment(
             SemaphoreSlim semaphoreSlim,
             string rootDirectory,
-            int totalEstablishments,
             Establishment establishment,
             CancellationToken cancellationToken)
         {
-            double currentPercentage = (this.establishmentCounter / (double)totalEstablishments) * 100;
+            List<string> usedFileNames = new List<string>();
 
             string directory = establishment.Directory;
-
-            this.UpdateCurrentStatus(
-                $"Processing \"{directory}\" - " +
-                string.Format(CultureInfo.InvariantCulture, "{0:N2}%", currentPercentage) +
-                $" of root \"{rootDirectory}\"...");
-
-            List<string> usedFileNames = new List<string>();
 
             await this.UnpackMigrateFiles(
                 new string[] { rootDirectory, directory },
@@ -203,8 +202,6 @@
                 usedFileNames,
                 cancellationToken)
                 .ConfigureAwait(false);
-
-            this.establishmentCounter++;
 
             semaphoreSlim.Release();
 
