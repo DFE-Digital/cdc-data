@@ -6,6 +6,7 @@
     using System.IO;
     using System.IO.Compression;
     using System.Linq;
+    using System.Runtime.CompilerServices;
     using System.Threading;
     using System.Threading.Tasks;
     using Dfe.CdcFileUnpacker.Application.Definitions;
@@ -21,13 +22,20 @@
         private const string RootCdcDirectory = "CDC";
         private const string RootCdcfeDirectory = "CDCFE";
 
-        private const string SitePlanFilenameSuffix = "_application_pdf.zip";
+        private const string ZipFilenameExtension = ".zip";
 
-        private const string SitePlanZipFileName = "a";
+        private const string SitePlanFilenameSuffix = "_application_pdf.zip";
+        private const string EvidenceMimeTypePartialText = "_text_";
+        private const string EvidenceMimeTypePartialImage = "_image_";
+
+        private const string ZipFileItemName = "a";
 
         private const string DestinationSitePlanSubDirectory = "Site Plan";
         private const string DestinationSitePlanMimeType = "application/pdf";
         private const string DestinationSitePlanFileExtension = ".pdf";
+
+        private const string DestinationEvidenceSubDirectory = "Evidence";
+        private const string DestinationEvidenceMimeType = "application/zip";
 
         private readonly IDocumentStorageAdapter documentStorageAdapter;
         private readonly ILoggerWrapper loggerWrapper;
@@ -81,10 +89,13 @@
             {
                 toReturn = ZipFileType.SitePlan;
             }
+            else if (zipFileName.Contains(EvidenceMimeTypePartialText) || zipFileName.Contains(EvidenceMimeTypePartialImage))
+            {
+                toReturn = ZipFileType.Evidence;
+            }
             else
             {
-                // Other file types. If toReturn == null, then we don't know
-                // how to deal with it.
+                // We don't know how to deal with this - leave it null.
             }
 
             return toReturn;
@@ -123,6 +134,10 @@
             int establishmentCounter = 0;
 
             string directory = null;
+
+            // This is used by the evidence file naming, and will allow us to
+            // track filenames, so we don't get duplicates.
+            List<string> usedFileNames = null;
             foreach (Establishment establishment in establishments)
             {
                 currentPercentage = (establishmentCounter / (double)totalEstablishements) * 100;
@@ -135,9 +150,12 @@
                     string.Format(CultureInfo.InvariantCulture, "{0:N2}%", currentPercentage) +
                     $" of root \"{rootDirectory}\"...");
 
+                usedFileNames = new List<string>();
+
                 await this.UnpackMigrateFiles(
                     new string[] { rootDirectory, directory },
                     establishment,
+                    usedFileNames,
                     cancellationToken)
                     .ConfigureAwait(false);
 
@@ -148,6 +166,7 @@
         private async Task UnpackMigrateFiles(
             string[] directoryPath,
             Establishment establishment,
+            List<string> usedFileNames,
             CancellationToken cancellationToken)
         {
             string topLevelDirectory = directoryPath.Last();
@@ -180,6 +199,7 @@
                 await this.UnpackMigrateFiles(
                     innerDirectoryPath,
                     establishment,
+                    usedFileNames,
                     cancellationToken)
                     .ConfigureAwait(false);
 
@@ -206,6 +226,7 @@
 
                 await this.ProcessFile(
                     establishment,
+                    usedFileNames,
                     documentFile,
                     cancellationToken)
                     .ConfigureAwait(false);
@@ -216,6 +237,7 @@
 
         private async Task ProcessFile(
             Establishment establishment,
+            List<string> usedFileNames,
             DocumentFile documentFile,
             CancellationToken cancellationToken)
         {
@@ -241,6 +263,15 @@
                             .ConfigureAwait(false);
                         break;
 
+                    case ZipFileType.Evidence:
+                        await this.ProcessEvidence(
+                            establishment,
+                            documentFile,
+                            usedFileNames,
+                            cancellationToken)
+                            .ConfigureAwait(false);
+                        break;
+
                     default:
                         this.loggerWrapper.Error(
                             "Able to determine the zip file type, but the " +
@@ -257,27 +288,80 @@
             }
         }
 
+        private async Task ProcessEvidence(
+            Establishment establishment,
+            DocumentFile documentFile,
+            List<string> usedFileNames,
+            CancellationToken cancellationToken)
+        {
+            byte[] downloadedBytesArray = await this.DownloadDocument(
+                documentFile,
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            // The filename should be the same as the original, just ammended
+            // slightly.
+            string name = documentFile.Name;
+
+            int indexOfFileExt = name.IndexOf(
+                ZipFilenameExtension,
+                StringComparison.InvariantCulture);
+
+            if (indexOfFileExt > 0)
+            {
+                string nameFormat = name.Insert(indexOfFileExt, "_{0}");
+
+                int i = 1;
+                string candidateName = null;
+
+                do
+                {
+                    candidateName = string.Format(
+                        CultureInfo.InvariantCulture,
+                        nameFormat,
+                        i);
+
+                    this.loggerWrapper.Debug(
+                        $"{nameof(candidateName)} = \"{candidateName}\"");
+
+                    i++;
+                }
+                while (usedFileNames.Contains(candidateName));
+
+                this.loggerWrapper.Info(
+                    $"Destination filename finalised: \"{candidateName}\". " +
+                    $"Adding to {nameof(usedFileNames)}.");
+
+                usedFileNames.Add(candidateName);
+
+                await this.SendFileToDestinationStorage(
+                    establishment,
+                    DestinationEvidenceSubDirectory,
+                    candidateName,
+                    DestinationEvidenceMimeType,
+                    downloadedBytesArray,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                this.loggerWrapper.Warning(
+                    $"This file \"{name}\" does not appear to be a zip " +
+                    $"file! It will be ignored!");
+            }
+        }
+
         private async Task ProcessSitePlanZip(
             Establishment establishment,
             DocumentFile documentFile,
             CancellationToken cancellationToken)
         {
-            this.loggerWrapper.Debug($"Downloading {documentFile}...");
-
-            string absolutePath = documentFile.AbsolutePath;
-            IEnumerable<byte> downloadedBytes =
-                await this.documentStorageAdapter.DownloadFileAsync(
-                    absolutePath,
-                    cancellationToken)
+            byte[] downloadedBytesArray = await this.DownloadDocument(
+                documentFile,
+                cancellationToken)
                 .ConfigureAwait(false);
 
-            this.loggerWrapper.Info(
-                $"Downloaded {documentFile} ({downloadedBytes.Count()} " +
-                $"byte(s)).");
-
             // Then unpack the zip file.
-            byte[] downloadedBytesArray = downloadedBytes.ToArray();
-
             this.loggerWrapper.Debug(
                 $"Opening file as a {nameof(ZipArchive)}...");
 
@@ -288,10 +372,10 @@
                 {
                     this.loggerWrapper.Debug(
                         $"Opened as {nameof(ZipArchive)}. Extracting file " +
-                        $"\"{SitePlanZipFileName}\"...");
+                        $"\"{ZipFileItemName}\"...");
 
                     ZipArchiveEntry zipArchiveEntry = zipArchive.GetEntry(
-                        SitePlanZipFileName);
+                        ZipFileItemName);
 
                     using (Stream stream = zipArchiveEntry.Open())
                     {
@@ -307,9 +391,54 @@
             }
 
             this.loggerWrapper.Info(
-                $"\"{SitePlanZipFileName}\" extracted from " +
+                $"\"{ZipFileItemName}\" extracted from " +
                 $"{nameof(ZipArchive)} ({sitePlanBytes.Length} byte(s)).");
 
+            string name = establishment.Name;
+            string filename = name + DestinationSitePlanFileExtension;
+
+            await this.SendFileToDestinationStorage(
+                establishment,
+                DestinationSitePlanSubDirectory,
+                filename,
+                DestinationSitePlanMimeType,
+                sitePlanBytes,
+                cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private async Task<byte[]> DownloadDocument(
+            DocumentFile documentFile,
+            CancellationToken cancellationToken)
+        {
+            byte[] toReturn = null;
+
+            this.loggerWrapper.Debug($"Downloading {documentFile}...");
+
+            string absolutePath = documentFile.AbsolutePath;
+            IEnumerable<byte> downloadedBytes =
+                await this.documentStorageAdapter.DownloadFileAsync(
+                    absolutePath,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"Downloaded {documentFile} ({downloadedBytes.Count()} " +
+                $"byte(s)).");
+
+            toReturn = downloadedBytes.ToArray();
+
+            return toReturn;
+        }
+
+        private async Task SendFileToDestinationStorage(
+            Establishment establishment,
+            string destinationSubDirectory,
+            string filename,
+            string destinationMimeType,
+            byte[] bytes,
+            CancellationToken cancellationToken)
+        {
             // Construct a directory for the establishment in the destination
             // storage.
             // Should have a URN, as I believe we're filtering this out before.
@@ -326,22 +455,18 @@
                 $"\"{destinationEstablishmentDir}\"");
 
             this.loggerWrapper.Debug(
-                $"Sending {nameof(ZipFileType.SitePlan)} to destination " +
-                $"storage...");
-
-            string filename = name + DestinationSitePlanFileExtension;
+                $"Sending file \"{filename}\" to destination storage...");
 
             await this.documentStorageAdapter.UploadFileAsync(
-                new string[] { destinationEstablishmentDir, DestinationSitePlanSubDirectory, },
+                new string[] { destinationEstablishmentDir, destinationSubDirectory, },
                 filename,
-                DestinationSitePlanMimeType,
-                sitePlanBytes,
+                destinationMimeType,
+                bytes,
                 cancellationToken)
                 .ConfigureAwait(false);
 
             this.loggerWrapper.Info(
-                $"{nameof(ZipFileType.SitePlan)} sent to destination " +
-                $"storage.");
+                $"File \"{filename}\" sent to destination storage.");
         }
 
         private async Task<IEnumerable<Establishment>> GetEstablishmentsAsync(
