@@ -6,10 +6,10 @@
     using System.IO;
     using System.IO.Compression;
     using System.Linq;
-    using System.Runtime.CompilerServices;
     using System.Threading;
     using System.Threading.Tasks;
     using Dfe.CdcFileUnpacker.Application.Definitions;
+    using Dfe.CdcFileUnpacker.Application.Definitions.SettingsProvider;
     using Dfe.CdcFileUnpacker.Application.Models;
     using Dfe.CdcFileUnpacker.Domain.Definitions;
     using Dfe.CdcFileUnpacker.Domain.Models;
@@ -39,6 +39,9 @@
 
         private readonly IDocumentStorageAdapter documentStorageAdapter;
         private readonly ILoggerWrapper loggerWrapper;
+        private readonly IUnpackRoutineSettingsProvider unpackRoutineSettingsProvider;
+
+        private int establishmentCounter;
 
         /// <summary>
         /// Initialises a new instance of the <see cref="UnpackRoutine" />
@@ -50,12 +53,17 @@
         /// <param name="loggerWrapper">
         /// An instance of type <see cref="ILoggerWrapper" />.
         /// </param>
+        /// <param name="unpackRoutineSettingsProvider">
+        /// An instance of type <see cref="IUnpackRoutineSettingsProvider" />.
+        /// </param>
         public UnpackRoutine(
             IDocumentStorageAdapter documentStorageAdapter,
-            ILoggerWrapper loggerWrapper)
+            ILoggerWrapper loggerWrapper,
+            IUnpackRoutineSettingsProvider unpackRoutineSettingsProvider)
         {
             this.documentStorageAdapter = documentStorageAdapter;
             this.loggerWrapper = loggerWrapper;
+            this.unpackRoutineSettingsProvider = unpackRoutineSettingsProvider;
         }
 
         /// <inheritdoc />
@@ -129,38 +137,80 @@
             // Second, process each establishment in turn.
             int totalEstablishements = establishments.Count();
 
-            double currentPercentage = 0;
+            this.establishmentCounter = 0;
 
-            int establishmentCounter = 0;
+            byte degreeOfParallelism =
+                this.unpackRoutineSettingsProvider.DegreeOfParallelism;
 
-            string directory = null;
+            // We're only going to want to do so many at a time...
+            SemaphoreSlim semaphoreSlim = new SemaphoreSlim(
+                degreeOfParallelism);
 
             // This is used by the evidence file naming, and will allow us to
             // track filenames, so we don't get duplicates.
-            List<string> usedFileNames = null;
+            List<Task> tasks = new List<Task>();
+
+            Task task = null;
             foreach (Establishment establishment in establishments)
             {
-                currentPercentage = (establishmentCounter / (double)totalEstablishements) * 100;
+                this.loggerWrapper.Debug(
+                    $"Waiting on {nameof(semaphoreSlim)}...");
 
-                // TODO: Update to be parallel. Get it working first.
-                directory = establishment.Directory;
+                await semaphoreSlim.WaitAsync().ConfigureAwait(false);
 
-                this.UpdateCurrentStatus(
-                    $"Processing \"{directory}\" - " +
-                    string.Format(CultureInfo.InvariantCulture, "{0:N2}%", currentPercentage) +
-                    $" of root \"{rootDirectory}\"...");
+                this.loggerWrapper.Info(
+                    $"{nameof(semaphoreSlim)} unblocked. Starting to " +
+                    $"process {establishment}...");
 
-                usedFileNames = new List<string>();
+                task = Task.Run(() =>
+                    this.ProcessEstablishment(
+                        semaphoreSlim,
+                        rootDirectory,
+                        totalEstablishements,
+                        establishment,
+                        cancellationToken));
 
-                await this.UnpackMigrateFiles(
-                    new string[] { rootDirectory, directory },
-                    establishment,
-                    usedFileNames,
-                    cancellationToken)
-                    .ConfigureAwait(false);
-
-                establishmentCounter++;
+                tasks.Add(task);
             }
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+
+            this.loggerWrapper.Info(
+                $"All \"{rootDirectory}\" {nameof(Task)}s complete.");
+        }
+
+        private async Task ProcessEstablishment(
+            SemaphoreSlim semaphoreSlim,
+            string rootDirectory,
+            int totalEstablishments,
+            Establishment establishment,
+            CancellationToken cancellationToken)
+        {
+            double currentPercentage = (this.establishmentCounter / (double)totalEstablishments) * 100;
+
+            string directory = establishment.Directory;
+
+            this.UpdateCurrentStatus(
+                $"Processing \"{directory}\" - " +
+                string.Format(CultureInfo.InvariantCulture, "{0:N2}%", currentPercentage) +
+                $" of root \"{rootDirectory}\"...");
+
+            List<string> usedFileNames = new List<string>();
+
+            await this.UnpackMigrateFiles(
+                new string[] { rootDirectory, directory },
+                establishment,
+                usedFileNames,
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            this.establishmentCounter++;
+
+            semaphoreSlim.Release();
+
+            this.loggerWrapper.Info(
+                $"Finished processing {establishment}. " +
+                $"{nameof(semaphoreSlim)} released.");
         }
 
         private async Task UnpackMigrateFiles(

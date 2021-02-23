@@ -8,6 +8,7 @@
     using CommandLine;
     using Dfe.CdcFileUnpacker.Application;
     using Dfe.CdcFileUnpacker.Application.Definitions;
+    using Dfe.CdcFileUnpacker.Application.Definitions.SettingsProvider;
     using Dfe.CdcFileUnpacker.ConsoleApp.Definitions;
     using Dfe.CdcFileUnpacker.ConsoleApp.Models;
     using Dfe.CdcFileUnpacker.ConsoleApp.SettingsProviders;
@@ -119,7 +120,6 @@
                 options.SourceStorageConnectionString;
             string sourceStorageFileShareName =
                 options.SourceStorageFileShareName;
-
             DocumentStorageAdapterSettingsProvider documentStorageAdapterSettingsProvider =
                 new DocumentStorageAdapterSettingsProvider(
                     destinationStorageConnectionString,
@@ -132,7 +132,11 @@
             LoggerWrapperSettingsProvider loggerWrapperSettingsProvider =
                 new LoggerWrapperSettingsProvider(logsDirectory);
 
-            using (ServiceProvider serviceProvider = CreateServiceProvider(documentStorageAdapterSettingsProvider, loggerWrapperSettingsProvider))
+            byte degreeOfParallelism = options.DegreeOfParallelism;
+            UnpackRoutineSettingsProvider unpackRoutineSettingsProvider =
+                new UnpackRoutineSettingsProvider(degreeOfParallelism);
+
+            using (ServiceProvider serviceProvider = CreateServiceProvider(documentStorageAdapterSettingsProvider, loggerWrapperSettingsProvider, unpackRoutineSettingsProvider))
             {
                 IProgram program = serviceProvider.GetService<IProgram>();
 
@@ -146,12 +150,14 @@
         [ExcludeFromCodeCoverage]
         private static ServiceProvider CreateServiceProvider(
             DocumentStorageAdapterSettingsProvider documentStorageAdapterSettingsProvider,
-            LoggerWrapperSettingsProvider loggerWrapperSettingsProvider)
+            LoggerWrapperSettingsProvider loggerWrapperSettingsProvider,
+            UnpackRoutineSettingsProvider unpackRoutineSettingsProvider)
         {
             ServiceProvider toReturn = null;
 
             IServiceCollection serviceCollection = new ServiceCollection()
                 .AddSingleton<IDocumentStorageAdapterSettingsProvider>(documentStorageAdapterSettingsProvider)
+                .AddSingleton<IUnpackRoutineSettingsProvider>(unpackRoutineSettingsProvider)
                 .AddScoped<IDocumentStorageAdapter, DocumentStorageAdapter>()
                 .AddSingleton<ILoggerWrapperSettingsProvider>(loggerWrapperSettingsProvider)
                 .AddSingleton<ILoggerWrapper, LoggerWrapper>()

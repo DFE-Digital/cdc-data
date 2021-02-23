@@ -73,5 +73,19 @@
             get;
             set;
         }
+
+        /// <summary>
+        /// Gets or sets the number of root directories in which process in
+        /// parallel.
+        /// </summary>
+        [Option(
+            "degree-of-parallelism",
+            Default = 5,
+            HelpText = "The number of root directories in which process in parallel.")]
+        public byte DegreeOfParallelism
+        {
+            get;
+            set;
+        }
     }
 }
