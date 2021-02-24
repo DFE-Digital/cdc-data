@@ -9,6 +9,7 @@
     using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
+    using System.Web;
     using Dfe.CdcFileUnpacker.Application.Definitions;
     using Dfe.CdcFileUnpacker.Application.Definitions.SettingsProvider;
     using Dfe.CdcFileUnpacker.Application.Models;
@@ -334,6 +335,7 @@
                         await this.ProcessSitePlanZip(
                             establishment,
                             documentFile,
+                            usedFileNames,
                             cancellationToken)
                             .ConfigureAwait(false);
                         break;
@@ -363,6 +365,53 @@
             }
         }
 
+        private string GenerateUniqueName(
+            string name,
+            string seperator,
+            string filenameExtension,
+            List<string> usedFileNames)
+        {
+            string toReturn = null;
+
+            int indexOfFileExt = name.IndexOf(
+                filenameExtension,
+                StringComparison.InvariantCulture);
+
+            if (indexOfFileExt > 0)
+            {
+                string nameFormat = name.Insert(indexOfFileExt, seperator + "{0}");
+
+                int i = 1;
+                do
+                {
+                    toReturn = string.Format(
+                        CultureInfo.InvariantCulture,
+                        nameFormat,
+                        i);
+
+                    this.loggerWrapper.Debug(
+                        $"{nameof(toReturn)} = \"{toReturn}\"");
+
+                    i++;
+                }
+                while (usedFileNames.Contains(toReturn));
+
+                this.loggerWrapper.Info(
+                    $"Destination filename finalised: \"{toReturn}\". " +
+                    $"Adding to {nameof(usedFileNames)}.");
+
+                usedFileNames.Add(toReturn);
+            }
+            else
+            {
+                this.loggerWrapper.Warning(
+                    $"This file \"{name}\" does not appear to be a zip " +
+                    $"file! It will be ignored!");
+            }
+
+            return toReturn;
+        }
+
         private async Task ProcessEvidence(
             Establishment establishment,
             DocumentFile documentFile,
@@ -377,58 +426,26 @@
             // The filename should be the same as the original, just ammended
             // slightly.
             string name = documentFile.Name;
-
-            int indexOfFileExt = name.IndexOf(
+            name = this.GenerateUniqueName(
+                name,
+                "_",
                 ZipFilenameExtension,
-                StringComparison.InvariantCulture);
+                usedFileNames);
 
-            if (indexOfFileExt > 0)
-            {
-                string nameFormat = name.Insert(indexOfFileExt, "_{0}");
-
-                int i = 1;
-                string candidateName = null;
-
-                do
-                {
-                    candidateName = string.Format(
-                        CultureInfo.InvariantCulture,
-                        nameFormat,
-                        i);
-
-                    this.loggerWrapper.Debug(
-                        $"{nameof(candidateName)} = \"{candidateName}\"");
-
-                    i++;
-                }
-                while (usedFileNames.Contains(candidateName));
-
-                this.loggerWrapper.Info(
-                    $"Destination filename finalised: \"{candidateName}\". " +
-                    $"Adding to {nameof(usedFileNames)}.");
-
-                usedFileNames.Add(candidateName);
-
-                await this.SendFileToDestinationStorage(
-                    establishment,
-                    DestinationEvidenceSubDirectory,
-                    candidateName,
-                    DestinationEvidenceMimeType,
-                    downloadedBytesArray,
-                    cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            else
-            {
-                this.loggerWrapper.Warning(
-                    $"This file \"{name}\" does not appear to be a zip " +
-                    $"file! It will be ignored!");
-            }
+            await this.SendFileToDestinationStorage(
+                establishment,
+                DestinationEvidenceSubDirectory,
+                name,
+                DestinationEvidenceMimeType,
+                downloadedBytesArray,
+                cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private async Task ProcessSitePlanZip(
             Establishment establishment,
             DocumentFile documentFile,
+            List<string> usedFileNames,
             CancellationToken cancellationToken)
         {
             byte[] downloadedBytesArray = await this.DownloadDocument(
@@ -472,6 +489,12 @@
             string name = establishment.Name;
             string filename = name + DestinationSitePlanFileExtension;
 
+            filename = this.GenerateUniqueName(
+                filename,
+                " ",
+                DestinationSitePlanFileExtension,
+                usedFileNames);
+
             Uri uri = await this.SendFileToDestinationStorage(
                 establishment,
                 DestinationSitePlanSubDirectory,
@@ -487,13 +510,14 @@
 
             string[] segments = uri.Segments;
             string fileName = segments.Last();
+            string fileNameDecoded = HttpUtility.UrlDecode(filename);
             string fileUrl = uri.AbsoluteUri.Replace(fileName, string.Empty);
 
             await this.documentMetadataAdapter.CreateDocumentMetadataAsync(
                 establishment.Urn.Value,
                 name,
                 fileType,
-                fileName,
+                fileNameDecoded,
                 fileUrl,
                 cancellationToken)
                 .ConfigureAwait(false);
