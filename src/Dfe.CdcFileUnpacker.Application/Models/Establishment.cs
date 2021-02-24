@@ -17,7 +17,7 @@
         /// <summary>
         /// Gets or sets the URN.
         /// </summary>
-        public long? Urn
+        public int? Urn
         {
             get;
             set;

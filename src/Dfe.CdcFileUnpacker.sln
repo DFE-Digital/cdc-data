@@ -7,9 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dfe.CdcFileUnpacker.Console
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dfe.CdcFileUnpacker.Domain", "Dfe.CdcFileUnpacker.Domain\Dfe.CdcFileUnpacker.Domain.csproj", "{0CEE6ED7-3C9D-40D7-99D2-BBC99104EB04}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dfe.CdcFileUnpacker.Application", "Dfe.CdcFileUnpacker.Application\Dfe.CdcFileUnpacker.Application.csproj", "{3FC9C52D-F306-45A2-8A73-CC275C5F16FB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dfe.CdcFileUnpacker.Application", "Dfe.CdcFileUnpacker.Application\Dfe.CdcFileUnpacker.Application.csproj", "{3FC9C52D-F306-45A2-8A73-CC275C5F16FB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dfe.CdcFileUnpacker.Infrastructure.AzureStorage", "Dfe.CdcFileUnpacker.Infrastructure.AzureStorage\Dfe.CdcFileUnpacker.Infrastructure.AzureStorage.csproj", "{C422E50A-5602-46B7-9794-139D89752483}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dfe.CdcFileUnpacker.Infrastructure.AzureStorage", "Dfe.CdcFileUnpacker.Infrastructure.AzureStorage\Dfe.CdcFileUnpacker.Infrastructure.AzureStorage.csproj", "{C422E50A-5602-46B7-9794-139D89752483}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dfe.CdcFileUnpacker.Infrastructure.SqlServer", "Dfe.CdcFileUnpacker.Infrastructure.SqlServer\Dfe.CdcFileUnpacker.Infrastructure.SqlServer.csproj", "{45E07959-9905-4D79-8D64-66C86664408D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{C422E50A-5602-46B7-9794-139D89752483}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C422E50A-5602-46B7-9794-139D89752483}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C422E50A-5602-46B7-9794-139D89752483}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45E07959-9905-4D79-8D64-66C86664408D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45E07959-9905-4D79-8D64-66C86664408D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45E07959-9905-4D79-8D64-66C86664408D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45E07959-9905-4D79-8D64-66C86664408D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

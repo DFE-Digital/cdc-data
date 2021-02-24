@@ -1,5 +1,6 @@
 ﻿namespace Dfe.CdcFileUnpacker.Domain.Definitions
 {
+    using System;
     using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
@@ -80,9 +81,9 @@
         /// An instance of <see cref="CancellationToken" />.
         /// </param>
         /// <returns>
-        /// A <see cref="Task"/> representing the asynchronous operation.
+        /// A <see cref="Uri" /> to the created file.
         /// </returns>
-        Task UploadFileAsync(
+        Task<Uri> UploadFileAsync(
             string[] directoryPath,
             string filename,
             string mimeType,

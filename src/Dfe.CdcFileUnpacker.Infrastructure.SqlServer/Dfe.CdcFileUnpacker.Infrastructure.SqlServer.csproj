@@ -1,18 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
-    <AssemblyName>file-unpacker</AssemblyName>
-    <DocumentationFile>Dfe.CdcFileUnpacker.ConsoleApp.xml</DocumentationFile>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <DocumentationFile>Dfe.CdcFileUnpacker.Infrastructure.SqlServer.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- Microsoft -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.1" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.2" />
 
     <!-- Other -->
-    <PackageReference Include="CommandLineParser" Version="2.8.0" />
+    <PackageReference Include="Dapper" Version="2.0.78" />
 
     <!-- Development/Non-Runtime -->
     <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="All" />
@@ -27,10 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Dfe.CdcFileUnpacker.Application\Dfe.CdcFileUnpacker.Application.csproj" />
     <ProjectReference Include="..\Dfe.CdcFileUnpacker.Domain\Dfe.CdcFileUnpacker.Domain.csproj" />
-    <ProjectReference Include="..\Dfe.CdcFileUnpacker.Infrastructure.AzureStorage\Dfe.CdcFileUnpacker.Infrastructure.AzureStorage.csproj" />
-    <ProjectReference Include="..\Dfe.CdcFileUnpacker.Infrastructure.SqlServer\Dfe.CdcFileUnpacker.Infrastructure.SqlServer.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

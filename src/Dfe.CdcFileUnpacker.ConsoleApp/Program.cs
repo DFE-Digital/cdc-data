@@ -15,6 +15,7 @@
     using Dfe.CdcFileUnpacker.Domain.Definitions;
     using Dfe.CdcFileUnpacker.Domain.Definitions.SettingsProviders;
     using Dfe.CdcFileUnpacker.Infrastructure.AzureStorage;
+    using Dfe.CdcFileUnpacker.Infrastructure.SqlServer;
     using Microsoft.Extensions.DependencyInjection;
 
     /// <summary>
@@ -116,6 +117,13 @@
         {
             int toReturn = -1;
 
+            string documentMetadataConnectionString =
+                options.DocumentMetadataConnectionString;
+
+            DocumentMetadataAdapterSettingsProvider documentMetadataAdapterSettingsProvider =
+                new DocumentMetadataAdapterSettingsProvider(
+                    documentMetadataConnectionString);
+
             string destinationStorageConnectionString =
                 options.DestinationStorageConnectionString;
             string destinationStorageFileShareName =
@@ -135,7 +143,7 @@
             UnpackRoutineSettingsProvider unpackRoutineSettingsProvider =
                 new UnpackRoutineSettingsProvider(degreeOfParallelism);
 
-            using (ServiceProvider serviceProvider = CreateServiceProvider(documentStorageAdapterSettingsProvider, unpackRoutineSettingsProvider))
+            using (ServiceProvider serviceProvider = CreateServiceProvider(documentMetadataAdapterSettingsProvider, documentStorageAdapterSettingsProvider, unpackRoutineSettingsProvider))
             {
                 IProgram program = serviceProvider.GetService<IProgram>();
 
@@ -148,14 +156,17 @@
 
         [ExcludeFromCodeCoverage]
         private static ServiceProvider CreateServiceProvider(
+            DocumentMetadataAdapterSettingsProvider documentMetadataAdapterSettingsProvider,
             DocumentStorageAdapterSettingsProvider documentStorageAdapterSettingsProvider,
             UnpackRoutineSettingsProvider unpackRoutineSettingsProvider)
         {
             ServiceProvider toReturn = null;
 
             IServiceCollection serviceCollection = new ServiceCollection()
+                .AddSingleton<IDocumentMetadataAdapterSettingsProvider>(documentMetadataAdapterSettingsProvider)
                 .AddSingleton<IDocumentStorageAdapterSettingsProvider>(documentStorageAdapterSettingsProvider)
                 .AddSingleton<IUnpackRoutineSettingsProvider>(unpackRoutineSettingsProvider)
+                .AddScoped<IDocumentMetadataAdapter, DocumentMetadataAdapter>()
                 .AddScoped<IDocumentStorageAdapter, DocumentStorageAdapter>()
                 .AddSingleton<ILoggerWrapper, LoggerWrapper>()
                 .AddSingleton<IUnpackRoutine, UnpackRoutine>()

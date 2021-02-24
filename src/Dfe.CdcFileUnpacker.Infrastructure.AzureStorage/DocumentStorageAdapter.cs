@@ -172,13 +172,15 @@
         }
 
         /// <inheritdoc />
-        public async Task UploadFileAsync(
+        public async Task<Uri> UploadFileAsync(
             string[] directoryPath,
             string filename,
             string mimeType,
             IEnumerable<byte> bytes,
             CancellationToken cancellationToken)
         {
+            Uri toReturn = null;
+
             if (directoryPath == null)
             {
                 throw new ArgumentNullException(nameof(directoryPath));
@@ -241,6 +243,8 @@
                 $"{bytes.Count()} {nameof(Byte)}s uploaded, with filename " +
                 $"\"{filename}\".");
 
+            toReturn = cloudFile.Uri;
+
             this.loggerWrapper.Debug(
                 $"Updating content type (\"{mimeType}\") on file...");
 
@@ -255,6 +259,8 @@
 
             this.loggerWrapper.Info(
                 $"Content type updated to \"{mimeType}\".");
+
+            return toReturn;
         }
 
         private async Task<IEnumerable<TListFileItem>> ListFileItems<TListFileItem>(

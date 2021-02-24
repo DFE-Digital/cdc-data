@@ -36,6 +36,19 @@
         }
 
         /// <summary>
+        /// Gets or sets the document metatadata connection string.
+        /// </summary>
+        [Option(
+            "document-metadata-connection-string",
+            Required = true,
+            HelpText = "The document metadata connection string.")]
+        public string DocumentMetadataConnectionString
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// Gets or sets the source stroage connection string.
         /// </summary>
         [Option(

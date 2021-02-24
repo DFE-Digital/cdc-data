@@ -38,6 +38,7 @@
         private const string DestinationEvidenceSubDirectory = "Evidence";
         private const string DestinationEvidenceMimeType = "application/zip";
 
+        private readonly IDocumentMetadataAdapter documentMetadataAdapter;
         private readonly IDocumentStorageAdapter documentStorageAdapter;
         private readonly ILoggerWrapper loggerWrapper;
         private readonly IUnpackRoutineSettingsProvider unpackRoutineSettingsProvider;
@@ -46,6 +47,9 @@
         /// Initialises a new instance of the <see cref="UnpackRoutine" />
         /// class.
         /// </summary>
+        /// <param name="documentMetadataAdapter">
+        /// An instance of type <see cref="IDocumentMetadataAdapter" />.
+        /// </param>
         /// <param name="documentStorageAdapter">
         /// An instance of type <see cref="IDocumentStorageAdapter" />.
         /// </param>
@@ -56,10 +60,12 @@
         /// An instance of type <see cref="IUnpackRoutineSettingsProvider" />.
         /// </param>
         public UnpackRoutine(
+            IDocumentMetadataAdapter documentMetadataAdapter,
             IDocumentStorageAdapter documentStorageAdapter,
             ILoggerWrapper loggerWrapper,
             IUnpackRoutineSettingsProvider unpackRoutineSettingsProvider)
         {
+            this.documentMetadataAdapter = documentMetadataAdapter;
             this.documentStorageAdapter = documentStorageAdapter;
             this.loggerWrapper = loggerWrapper;
             this.unpackRoutineSettingsProvider = unpackRoutineSettingsProvider;
@@ -466,12 +472,29 @@
             string name = establishment.Name;
             string filename = name + DestinationSitePlanFileExtension;
 
-            await this.SendFileToDestinationStorage(
+            Uri uri = await this.SendFileToDestinationStorage(
                 establishment,
                 DestinationSitePlanSubDirectory,
                 filename,
                 DestinationSitePlanMimeType,
                 sitePlanBytes,
+                cancellationToken)
+                .ConfigureAwait(false);
+
+            // Then insert the metadata.
+            int urn = establishment.Urn.Value;
+            FileTypeOption fileType = FileTypeOption.SitePlan;
+
+            string[] segments = uri.Segments;
+            string fileName = segments.Last();
+            string fileUrl = uri.AbsoluteUri.Replace(fileName, string.Empty);
+
+            await this.documentMetadataAdapter.CreateDocumentMetadataAsync(
+                establishment.Urn.Value,
+                name,
+                fileType,
+                fileName,
+                fileUrl,
                 cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -500,7 +523,7 @@
             return toReturn;
         }
 
-        private async Task SendFileToDestinationStorage(
+        private async Task<Uri> SendFileToDestinationStorage(
             Establishment establishment,
             string destinationSubDirectory,
             string filename,
@@ -508,6 +531,8 @@
             byte[] bytes,
             CancellationToken cancellationToken)
         {
+            Uri toReturn = null;
+
             // Construct a directory for the establishment in the destination
             // storage.
             // Should have a URN, as I believe we're filtering this out before.
@@ -526,7 +551,7 @@
             this.loggerWrapper.Debug(
                 $"Sending file \"{filename}\" to destination storage...");
 
-            await this.documentStorageAdapter.UploadFileAsync(
+            toReturn = await this.documentStorageAdapter.UploadFileAsync(
                 new string[] { destinationEstablishmentDir, destinationSubDirectory, },
                 filename,
                 destinationMimeType,
@@ -536,6 +561,8 @@
 
             this.loggerWrapper.Info(
                 $"File \"{filename}\" sent to destination storage.");
+
+            return toReturn;
         }
 
         private async Task<IEnumerable<Establishment>> GetEstablishmentsAsync(
@@ -615,11 +642,11 @@
 
             string urnStr = parts.First();
 
-            long? urn = null;
+            int? urn = null;
 
             try
             {
-                urn = long.Parse(urnStr, CultureInfo.InvariantCulture);
+                urn = int.Parse(urnStr, CultureInfo.InvariantCulture);
             }
             catch (FormatException formatException)
             {
