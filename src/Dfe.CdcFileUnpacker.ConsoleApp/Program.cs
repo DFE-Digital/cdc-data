@@ -74,6 +74,10 @@
         }
 
         /// <inheritdoc />
+        [SuppressMessage(
+            "Microsoft.Design",
+            "CA1031",
+            Justification = "Catch-all for anything I've not considered, on an application-wide level.")]
         public async Task<int> RunAsync(
             Options options,
             CancellationToken cancellationToken)

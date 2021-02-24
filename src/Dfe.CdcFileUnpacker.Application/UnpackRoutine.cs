@@ -2,6 +2,7 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics.CodeAnalysis;
     using System.Globalization;
     using System.IO;
     using System.IO.Compression;
@@ -185,6 +186,10 @@
                 $"All \"{rootDirectory}\" {nameof(Task)}s complete.");
         }
 
+        [SuppressMessage(
+            "Microsoft.Design",
+            "CA1031",
+            Justification = "Catch-all for anything I've not considered, on an establishment/thread level.")]
         private async Task ProcessEstablishment(
             SemaphoreSlim semaphoreSlim,
             string rootDirectory,
@@ -211,6 +216,11 @@
                     $"{establishment}. Releasing the " +
                     $"{nameof(semaphoreSlim)} anyway.",
                     exception);
+
+                // TODO: Remove, but leaving in just for now, to figure out if
+                //       any exceptions are being thrown, and if I'm not
+                //       looking at the screen.
+                Environment.Exit(-1);
             }
             finally
             {
