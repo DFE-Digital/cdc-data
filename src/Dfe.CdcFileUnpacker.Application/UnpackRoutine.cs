@@ -132,7 +132,6 @@
                 $"{establishments.Count()} {nameof(Establishment)}(s) " +
                 $"parsed.");
 
-            // Second, process each establishment in turn.
             int totalEstablishements = establishments.Count();
 
             int establishmentCounter = 0;
@@ -192,22 +191,35 @@
             Establishment establishment,
             CancellationToken cancellationToken)
         {
-            List<string> usedFileNames = new List<string>();
+            try
+            {
+                List<string> usedFileNames = new List<string>();
 
-            string directory = establishment.Directory;
+                string directory = establishment.Directory;
 
-            await this.UnpackMigrateFiles(
-                new string[] { rootDirectory, directory },
-                establishment,
-                usedFileNames,
-                cancellationToken)
-                .ConfigureAwait(false);
+                await this.UnpackMigrateFiles(
+                    new string[] { rootDirectory, directory },
+                    establishment,
+                    usedFileNames,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                this.loggerWrapper.Error(
+                    $"An unhandled exception was thrown while processing " +
+                    $"{establishment}. Releasing the " +
+                    $"{nameof(semaphoreSlim)} anyway.",
+                    exception);
+            }
+            finally
+            {
+                semaphoreSlim.Release();
 
-            semaphoreSlim.Release();
-
-            this.loggerWrapper.Info(
-                $"Finished processing {establishment}. " +
-                $"{nameof(semaphoreSlim)} released.");
+                this.loggerWrapper.Info(
+                    $"Finished processing {establishment}. " +
+                    $"{nameof(semaphoreSlim)} released.");
+            }
         }
 
         private async Task UnpackMigrateFiles(

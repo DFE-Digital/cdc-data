@@ -127,16 +127,11 @@
                     sourceStorageConnectionString,
                     sourceStorageFileShareName);
 
-            string logsDirectory = options.LogsDirectory;
-
-            LoggerWrapperSettingsProvider loggerWrapperSettingsProvider =
-                new LoggerWrapperSettingsProvider(logsDirectory);
-
             byte degreeOfParallelism = options.DegreeOfParallelism;
             UnpackRoutineSettingsProvider unpackRoutineSettingsProvider =
                 new UnpackRoutineSettingsProvider(degreeOfParallelism);
 
-            using (ServiceProvider serviceProvider = CreateServiceProvider(documentStorageAdapterSettingsProvider, loggerWrapperSettingsProvider, unpackRoutineSettingsProvider))
+            using (ServiceProvider serviceProvider = CreateServiceProvider(documentStorageAdapterSettingsProvider, unpackRoutineSettingsProvider))
             {
                 IProgram program = serviceProvider.GetService<IProgram>();
 
@@ -150,7 +145,6 @@
         [ExcludeFromCodeCoverage]
         private static ServiceProvider CreateServiceProvider(
             DocumentStorageAdapterSettingsProvider documentStorageAdapterSettingsProvider,
-            LoggerWrapperSettingsProvider loggerWrapperSettingsProvider,
             UnpackRoutineSettingsProvider unpackRoutineSettingsProvider)
         {
             ServiceProvider toReturn = null;
@@ -159,7 +153,6 @@
                 .AddSingleton<IDocumentStorageAdapterSettingsProvider>(documentStorageAdapterSettingsProvider)
                 .AddSingleton<IUnpackRoutineSettingsProvider>(unpackRoutineSettingsProvider)
                 .AddScoped<IDocumentStorageAdapter, DocumentStorageAdapter>()
-                .AddSingleton<ILoggerWrapperSettingsProvider>(loggerWrapperSettingsProvider)
                 .AddSingleton<ILoggerWrapper, LoggerWrapper>()
                 .AddSingleton<IUnpackRoutine, UnpackRoutine>()
                 .AddSingleton<IProgram, Program>();

@@ -10,19 +10,6 @@
     public class Options : ModelsBase
     {
         /// <summary>
-        /// Gets or sets a filepath to a directory in which to store the logs.
-        /// </summary>
-        [Option(
-            "logs-directory",
-            Default = "logs",
-            HelpText = "A filepath to a directory in which to store logs.")]
-        public string LogsDirectory
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
         /// Gets or sets the destination storage connection string.
         /// </summary>
         [Option(
