@@ -7,6 +7,7 @@
     using System.IO;
     using System.IO.Compression;
     using System.Linq;
+    using System.Security.Principal;
     using System.Threading;
     using System.Threading.Tasks;
     using System.Web;
@@ -23,12 +24,17 @@
     {
         private const string RootCdcDirectory = "CDC";
         private const string RootCdcfeDirectory = "CDCFE";
+        private const string RootCdcReports = "CDCReports";
+        private const string RootCdcReports50 = "CDCReports_50";
+        private const string RootCDCReportsExtra = "CDCReports_extra";
 
         private const string ZipFilenameExtension = ".zip";
 
         private const string SitePlanFilenameSuffix = "_application_pdf.zip";
         private const string EvidenceMimeTypePartialText = "_text_";
         private const string EvidenceMimeTypePartialImage = "_image_";
+        private const string ConditionReportArchiveName = "CDC_School_Condition_Report_docx.zip";
+        private const string ConditionReportName = "CDC_School_Condition_Report.docx";
 
         private const string ZipFileItemName = "a";
 
@@ -38,6 +44,10 @@
 
         private const string DestinationEvidenceSubDirectory = "Evidence";
         private const string DestinationEvidenceMimeType = "application/zip";
+
+        private const string DestinationReportSubDirectory = "Condition Report";
+        private const string DestinationReportMimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        private const string DestinationReportFileExtension = ".docx";
 
         private readonly IDocumentMetadataAdapter documentMetadataAdapter;
         private readonly IDocumentStorageAdapter documentStorageAdapter;
@@ -80,17 +90,37 @@
         {
             // 1) Iterate and parse the folder names in the CDC and CDCFE
             //    directories.
-            await this.ProcessRootDirectory(
-                RootCdcDirectory,
-                true,
-                cancellationToken)
-                .ConfigureAwait(false);
+            //    We know these two work, so no need to re-run, for now.
+            // await this.ProcessRootDirectory(
+            //     RootCdcDirectory,
+            //     true,
+            //     cancellationToken)
+            //     .ConfigureAwait(false);
+
+            // await this.ProcessRootDirectory(
+            //     RootCdcfeDirectory,
+            //     false,
+            //     cancellationToken)
+            //     .ConfigureAwait(false);
+
+            List<string> usedReportFilenames = await this.ProcessRootDirectory(
+                RootCdcReports,
+                false,
+                cancellationToken);
+
+            usedReportFilenames = await this.ProcessRootDirectory(
+                RootCdcReports50,
+                false,
+                cancellationToken,
+                appendOnlyIfDoesntExist: true,
+                usedFilenames: usedReportFilenames);
 
             await this.ProcessRootDirectory(
-                RootCdcfeDirectory,
+                RootCDCReportsExtra,
                 false,
-                cancellationToken)
-                .ConfigureAwait(false);
+                cancellationToken,
+                appendOnlyIfDoesntExist: true,
+                usedFilenames: usedReportFilenames);
         }
 
         private static ZipFileType? GetZipFileType(string zipFileName)
@@ -107,6 +137,14 @@
             {
                 toReturn = ZipFileType.Evidence;
             }
+            else if (zipFileName == ConditionReportArchiveName)
+            {
+                toReturn = ZipFileType.ArchivedReport;
+            }
+            else if (zipFileName == ConditionReportName)
+            {
+                toReturn = ZipFileType.Report;
+            }
             else
             {
                 // We don't know how to deal with this - leave it null.
@@ -115,11 +153,15 @@
             return toReturn;
         }
 
-        private async Task ProcessRootDirectory(
+        private async Task<List<string>> ProcessRootDirectory(
             string rootDirectory,
             bool filterResults,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            List<string> usedFilenames = null,
+            bool appendOnlyIfDoesntExist = false)
         {
+            List<string> toReturn = null;
+
             // First, parse the establishment folders, and filter down to the
             // directories we want to scan.
             this.UpdateCurrentStatus(
@@ -135,6 +177,11 @@
                     filterResults,
                     cancellationToken)
                 .ConfigureAwait(false);
+
+            // TODO: Remove, this is just for testing.
+            establishments = establishments
+                .Where(x => x.Directory == "101272 Cromer Road Primary School (CDC)")
+                .ToList();
 
             this.loggerWrapper.Info(
                 $"{establishments.Count()} {nameof(Establishment)}(s) " +
@@ -153,9 +200,11 @@
 
             // This is used by the evidence file naming, and will allow us to
             // track filenames, so we don't get duplicates.
-            List<Task> tasks = new List<Task>();
+            List<Task<List<string>>> tasks = new List<Task<List<string>>>();
 
-            Task task = null;
+            List<string> usedFilenamesCopy = null;
+
+            Task<List<string>> task = null;
             foreach (Establishment establishment in establishments)
             {
                 this.loggerWrapper.Debug(
@@ -167,11 +216,18 @@
                     $"{nameof(semaphoreSlim)} unblocked. Starting to " +
                     $"process {establishment}...");
 
-                task = Task.Run(() =>
-                    this.ProcessEstablishment(
+                if (usedFilenames != null)
+                {
+                    usedFilenamesCopy = usedFilenames.ToList();
+                }
+
+                task = Task.Run(
+                    () => this.ProcessEstablishment(
                         semaphoreSlim,
+                        usedFilenamesCopy, // We want a copy to be passed here, to avoid cross-threading issues.
                         rootDirectory,
                         establishment,
+                        appendOnlyIfDoesntExist,
                         cancellationToken));
 
                 establishmentCounter++;
@@ -189,30 +245,51 @@
 
             await Task.WhenAll(tasks).ConfigureAwait(false);
 
+            // Combine all the usedFileNames into one big list, and return.
+            IEnumerable<string> allUsedFilenames = tasks
+                .SelectMany(x => x.Result)
+                .Distinct();
+
             this.loggerWrapper.Info(
                 $"All \"{rootDirectory}\" {nameof(Task)}s complete.");
+
+            toReturn = allUsedFilenames.ToList();
+
+            return toReturn;
         }
 
         [SuppressMessage(
             "Microsoft.Design",
             "CA1031",
             Justification = "Catch-all for anything I've not considered, on an establishment/thread level.")]
-        private async Task ProcessEstablishment(
+        private async Task<List<string>> ProcessEstablishment(
             SemaphoreSlim semaphoreSlim,
+            List<string> usedFilenames,
             string rootDirectory,
             Establishment establishment,
+            bool appendOnlyIfDoesntExist,
             CancellationToken cancellationToken)
         {
+            List<string> toReturn = null;
+
             try
             {
-                List<string> usedFileNames = new List<string>();
+                if (usedFilenames != null)
+                {
+                    toReturn = usedFilenames;
+                }
+                else
+                {
+                    toReturn = new List<string>();
+                }
 
                 string directory = establishment.Directory;
 
                 await this.UnpackMigrateFiles(
                     new string[] { rootDirectory, directory },
                     establishment,
-                    usedFileNames,
+                    toReturn,
+                    appendOnlyIfDoesntExist,
                     cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -237,12 +314,15 @@
                     $"Finished processing {establishment}. " +
                     $"{nameof(semaphoreSlim)} released.");
             }
+
+            return toReturn;
         }
 
         private async Task UnpackMigrateFiles(
             string[] directoryPath,
             Establishment establishment,
             List<string> usedFileNames,
+            bool appendOnlyIfDoesntExist,
             CancellationToken cancellationToken)
         {
             string topLevelDirectory = directoryPath.Last();
@@ -276,6 +356,7 @@
                     innerDirectoryPath,
                     establishment,
                     usedFileNames,
+                    appendOnlyIfDoesntExist,
                     cancellationToken)
                     .ConfigureAwait(false);
 
@@ -304,6 +385,7 @@
                     establishment,
                     usedFileNames,
                     documentFile,
+                    appendOnlyIfDoesntExist,
                     cancellationToken)
                     .ConfigureAwait(false);
 
@@ -315,6 +397,7 @@
             Establishment establishment,
             List<string> usedFileNames,
             DocumentFile documentFile,
+            bool appendToDirectoryIfNotExists,
             CancellationToken cancellationToken)
         {
             this.loggerWrapper.Debug(
@@ -347,6 +430,22 @@
                             usedFileNames,
                             cancellationToken)
                             .ConfigureAwait(false);
+                        break;
+
+                    case ZipFileType.ArchivedReport:
+                        await this.ProcessArchivedReport(
+                            establishment,
+                            documentFile,
+                            usedFileNames,
+                            appendToDirectoryIfNotExists,
+                            cancellationToken)
+                            .ConfigureAwait(false);
+                        break;
+
+                    case ZipFileType.Report:
+
+
+
                         break;
 
                     default:
@@ -442,12 +541,12 @@
                 .ConfigureAwait(false);
         }
 
-        private async Task ProcessSitePlanZip(
-            Establishment establishment,
+        private async Task<byte[]> DownloadAndUnzip(
             DocumentFile documentFile,
-            List<string> usedFileNames,
             CancellationToken cancellationToken)
         {
+            byte[] toReturn = null;
+
             byte[] downloadedBytesArray = await this.DownloadDocument(
                 documentFile,
                 cancellationToken)
@@ -457,7 +556,6 @@
             this.loggerWrapper.Debug(
                 $"Opening file as a {nameof(ZipArchive)}...");
 
-            byte[] sitePlanBytes = null;
             using (MemoryStream memoryStream = new MemoryStream(downloadedBytesArray))
             {
                 using (ZipArchive zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Read))
@@ -476,7 +574,7 @@
                             await stream.CopyToAsync(destinationMemoryStream)
                                 .ConfigureAwait(false);
 
-                            sitePlanBytes = destinationMemoryStream.ToArray();
+                            toReturn = destinationMemoryStream.ToArray();
                         }
                     }
                 }
@@ -484,7 +582,92 @@
 
             this.loggerWrapper.Info(
                 $"\"{ZipFileItemName}\" extracted from " +
-                $"{nameof(ZipArchive)} ({sitePlanBytes.Length} byte(s)).");
+                $"{nameof(ZipArchive)} ({toReturn.Length} byte(s)).");
+
+            return toReturn;
+        }
+
+        private async Task ProcessReport(
+            Establishment establishment,
+            DocumentFile documentFile,
+            List<string> usedFileNames,
+            CancellationToken cancellationToken)
+        {
+
+        }
+
+        private async Task ProcessArchivedReport(
+            Establishment establishment,
+            DocumentFile documentFile,
+            List<string> usedFileNames,
+            bool appendToDirectoryIfNotExists,
+            CancellationToken cancellationToken)
+        {
+            string name = establishment.Name;
+
+            bool append = true;
+            if (appendToDirectoryIfNotExists)
+            {
+                if (usedFileNames.Exists(x => x.Contains(name)))
+                {
+                    append = false;
+                }
+            }
+
+            if (append)
+            {
+                string filename = name + DestinationReportFileExtension;
+
+                filename = this.GenerateUniqueName(
+                    filename,
+                    " ",
+                    DestinationReportFileExtension,
+                    usedFileNames);
+
+                byte[] reportBytes = await this.DownloadAndUnzip(
+                    documentFile,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+
+                Uri uri = await this.SendFileToDestinationStorage(
+                    establishment,
+                    DestinationReportSubDirectory,
+                    filename,
+                    DestinationReportMimeType,
+                    reportBytes,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+
+                FileTypeOption fileType = FileTypeOption.Report;
+                await this.InsertMetaData(
+                    establishment,
+                    fileType,
+                    uri,
+                    name,
+                    filename,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                this.loggerWrapper.Warning(
+                    $"A file already exists with a name similar to " +
+                    $"\"{name}\", and " +
+                    $"{nameof(appendToDirectoryIfNotExists)} = false. " +
+                    $"Therefore, this file will be ignored.");
+            }
+        }
+
+        private async Task ProcessSitePlanZip(
+            Establishment establishment,
+            DocumentFile documentFile,
+            List<string> usedFileNames,
+            CancellationToken cancellationToken)
+        {
+            byte[] sitePlanBytes = await this.DownloadAndUnzip(
+                documentFile,
+                cancellationToken)
+                .ConfigureAwait(false);
 
             string name = establishment.Name;
             string filename = name + DestinationSitePlanFileExtension;
@@ -504,10 +687,26 @@
                 cancellationToken)
                 .ConfigureAwait(false);
 
-            // Then insert the metadata.
-            int urn = establishment.Urn.Value;
             FileTypeOption fileType = FileTypeOption.SitePlan;
+            await this.InsertMetaData(
+                establishment,
+                fileType,
+                uri,
+                name,
+                filename,
+                cancellationToken)
+                .ConfigureAwait(false);
+        }
 
+        private async Task InsertMetaData(
+            Establishment establishment,
+            FileTypeOption fileType,
+            Uri uri,
+            string name,
+            string filename,
+            CancellationToken cancellationToken)
+        {
+            // Then insert the metadata.
             string[] segments = uri.Segments;
             string fileName = segments.Last();
             string fileNameDecoded = HttpUtility.UrlDecode(filename);

@@ -15,5 +15,15 @@
         /// Represents evidence.
         /// </summary>
         Evidence,
+
+        /// <summary>
+        /// Represents an archived report.
+        /// </summary>
+        ArchivedReport,
+
+        /// <summary>
+        /// Represents a report.
+        /// </summary>
+        Report,
     }
 }
