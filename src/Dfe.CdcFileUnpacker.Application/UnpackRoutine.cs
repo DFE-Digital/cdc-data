@@ -103,24 +103,30 @@
             //     cancellationToken)
             //     .ConfigureAwait(false);
 
+            List<string> allUsedReportFilenames = new List<string>();
+
             List<string> usedReportFilenames = await this.ProcessRootDirectory(
                 RootCdcReports,
                 false,
                 cancellationToken);
+
+            allUsedReportFilenames.AddRange(usedReportFilenames);
 
             usedReportFilenames = await this.ProcessRootDirectory(
                 RootCdcReports50,
                 false,
                 cancellationToken,
                 appendOnlyIfDoesntExist: true,
-                usedFilenames: usedReportFilenames);
+                usedFilenames: allUsedReportFilenames);
+
+            allUsedReportFilenames.AddRange(usedReportFilenames);
 
             await this.ProcessRootDirectory(
                 RootCDCReportsExtra,
                 false,
                 cancellationToken,
                 appendOnlyIfDoesntExist: true,
-                usedFilenames: usedReportFilenames);
+                usedFilenames: allUsedReportFilenames);
         }
 
         private static ZipFileType? GetZipFileType(string zipFileName)
@@ -153,6 +159,23 @@
             return toReturn;
         }
 
+        private static bool ShouldAppend(
+            bool appendToDirectoryIfNotExists,
+            List<string> usedFileNames,
+            string name)
+        {
+            bool append = true;
+            if (appendToDirectoryIfNotExists)
+            {
+                if (usedFileNames.Exists(x => x.Contains(name)))
+                {
+                    append = false;
+                }
+            }
+
+            return append;
+        }
+
         private async Task<List<string>> ProcessRootDirectory(
             string rootDirectory,
             bool filterResults,
@@ -177,11 +200,6 @@
                     filterResults,
                     cancellationToken)
                 .ConfigureAwait(false);
-
-            // TODO: Remove, this is just for testing.
-            establishments = establishments
-                .Where(x => x.Directory == "101272 Cromer Road Primary School (CDC)")
-                .ToList();
 
             this.loggerWrapper.Info(
                 $"{establishments.Count()} {nameof(Establishment)}(s) " +
@@ -443,9 +461,13 @@
                         break;
 
                     case ZipFileType.Report:
-
-
-
+                        await this.ProcessReport(
+                            establishment,
+                            documentFile,
+                            usedFileNames,
+                            appendToDirectoryIfNotExists,
+                            cancellationToken)
+                            .ConfigureAwait(false);
                         break;
 
                     default:
@@ -591,9 +613,58 @@
             Establishment establishment,
             DocumentFile documentFile,
             List<string> usedFileNames,
+            bool appendToDirectoryIfNotExists,
             CancellationToken cancellationToken)
         {
+            string name = establishment.Name;
 
+            bool append = ShouldAppend(
+                appendToDirectoryIfNotExists,
+                usedFileNames,
+                name);
+
+            if (append)
+            {
+                string filename = name + DestinationReportFileExtension;
+
+                filename = this.GenerateUniqueName(
+                    filename,
+                    " ",
+                    DestinationReportFileExtension,
+                    usedFileNames);
+
+                byte[] reportBytes = await this.DownloadDocument(
+                    documentFile,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+
+                Uri uri = await this.SendFileToDestinationStorage(
+                    establishment,
+                    DestinationReportSubDirectory,
+                    filename,
+                    DestinationReportMimeType,
+                    reportBytes,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+
+                FileTypeOption fileType = FileTypeOption.Report;
+                await this.InsertMetaData(
+                    establishment,
+                    fileType,
+                    uri,
+                    name,
+                    filename,
+                    cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                this.loggerWrapper.Warning(
+                    $"A file already exists with a name similar to " +
+                    $"\"{name}\", and " +
+                    $"{nameof(appendToDirectoryIfNotExists)} = false. " +
+                    $"Therefore, this file will be ignored.");
+            }
         }
 
         private async Task ProcessArchivedReport(
@@ -605,14 +676,10 @@
         {
             string name = establishment.Name;
 
-            bool append = true;
-            if (appendToDirectoryIfNotExists)
-            {
-                if (usedFileNames.Exists(x => x.Contains(name)))
-                {
-                    append = false;
-                }
-            }
+            bool append = ShouldAppend(
+                appendToDirectoryIfNotExists,
+                usedFileNames,
+                name);
 
             if (append)
             {
