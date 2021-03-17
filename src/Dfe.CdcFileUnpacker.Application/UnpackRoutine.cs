@@ -91,17 +91,17 @@
             // 1) Iterate and parse the folder names in the CDC and CDCFE
             //    directories.
             //    We know these two work, so no need to re-run, for now.
-            // await this.ProcessRootDirectory(
-            //     RootCdcDirectory,
-            //     true,
-            //     cancellationToken)
-            //     .ConfigureAwait(false);
+            await this.ProcessRootDirectory(
+                RootCdcDirectory,
+                true,
+                cancellationToken)
+                .ConfigureAwait(false);
 
-            // await this.ProcessRootDirectory(
-            //     RootCdcfeDirectory,
-            //     false,
-            //     cancellationToken)
-            //     .ConfigureAwait(false);
+            await this.ProcessRootDirectory(
+                RootCdcfeDirectory,
+                false,
+                cancellationToken)
+                .ConfigureAwait(false);
 
             List<string> allUsedReportFilenames = new List<string>();
 
