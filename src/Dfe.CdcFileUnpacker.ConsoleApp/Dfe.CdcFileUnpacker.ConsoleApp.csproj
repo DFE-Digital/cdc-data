@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <AssemblyName>file-unpacker</AssemblyName>
+    <DocumentationFile>Dfe.CdcFileUnpacker.ConsoleApp.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="5.0.1" />
+
+    <!-- Other -->
+    <PackageReference Include="CommandLineParser" Version="2.8.0" />
+
+    <!-- Development/Non-Runtime -->
+    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="5.0.3" PrivateAssets="All">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="..\stylecop.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dfe.CdcFileUnpacker.Application\Dfe.CdcFileUnpacker.Application.csproj" />
+    <ProjectReference Include="..\Dfe.CdcFileUnpacker.Domain\Dfe.CdcFileUnpacker.Domain.csproj" />
+    <ProjectReference Include="..\Dfe.CdcFileUnpacker.Infrastructure.AzureStorage\Dfe.CdcFileUnpacker.Infrastructure.AzureStorage.csproj" />
+    <ProjectReference Include="..\Dfe.CdcFileUnpacker.Infrastructure.SqlServer\Dfe.CdcFileUnpacker.Infrastructure.SqlServer.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <CodeAnalysisRuleSet>..\ca.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+
+</Project>
