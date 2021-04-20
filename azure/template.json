@@ -38,11 +38,17 @@
       "maxLength": 2,
       "defaultValue": "01"
     },
-    "subnetInstance": {
+    "subnetInstance01": {
       "type": "string",
       "minLength": 2,
       "maxLength": 2,
       "defaultValue": "01"
+    },
+    "subnetInstance02": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 2,
+      "defaultValue": "02"
     },
     "sqlServerUsername": {
       "type": "string",
@@ -67,6 +73,12 @@
     "namePrefix": "[concat(parameters('serviceIdentifier'), parameters('environment'), parameters('environmentInstance'))]",
     "appNamePrefix": "[concat(variables('namePrefix'), '-', parameters('appName'))]",
 
+    "pepSqlName": "[concat(variables('namePrefix'), '-sql-pep-01')]",
+    "pepSqlId": "[resourceId('Microsoft.Network/privateEndpoints', variables('pepSqlName'))]",
+
+    "pepDocsName": "[concat(variables('namePrefix'), '-cdcdocs-pep-02')]",
+    "pepDocsId": "[resourceId('Microsoft.Network/privateEndpoints', variables('pepDocsName'))]",
+
     "storageAccountName": "[concat(variables('namePrefix'), 'cdcdocs', 'sa01')]",
     "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
 
@@ -74,8 +86,12 @@
 
     "corePrefix": "[concat(variables('namePrefix'), '-core')]",
     "vNetName": "[concat(concat(variables('corePrefix'), '-vn-'), parameters('vNetInstance'))]",
-    "subnetName": "[concat(variables('corePrefix'), '-sn-', parameters('subnetInstance'))]",
-    "subnetId": "[resourceId(variables('corePrefix'), 'Microsoft.Network/virtualNetworks/subnets', variables('vNetName'), variables('subnetName'))]",
+
+    "subnet01Name": "[concat(variables('corePrefix'), '-sn-', parameters('subnetInstance01'))]",
+    "subnet01Id": "[resourceId(variables('corePrefix'), 'Microsoft.Network/virtualNetworks/subnets', variables('vNetName'), variables('subnet01Name'))]",
+
+    "subnet02Name": "[concat(variables('corePrefix'), '-sn-', parameters('subnetInstance02'))]",
+    "subnet02Id": "[resourceId(variables('corePrefix'), 'Microsoft.Network/virtualNetworks/subnets', variables('vNetName'), variables('subnet02Name'))]",
 
     "sqlServerName": "[concat(variables('appNamePrefix'), '-sql-01')]",
     "sqlServerId": "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]",
@@ -83,6 +99,58 @@
 
   },
   "resources": [
+
+    {
+      "apiVersion": "2020-05-01",
+      "name": "[variables('pepSqlName')]",
+      "type": "Microsoft.Network/privateEndpoints",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[variables('sqlServerId')]"
+      ],
+      "properties": {
+        "privateLinkServiceConnections": [
+          {
+            "name": "[variables('pepSqlName')]",
+            "properties": {
+              "privateLinkServiceId": "[variables('sqlServerId')]",
+              "groupIds": [
+                "sqlServer"
+              ]
+            }
+          }
+        ],
+        "subnet": {
+          "id": "[variables('subnet02Id')]"
+        }
+      }
+    },
+
+    {
+      "apiVersion": "2020-05-01",
+      "name": "[variables('pepDocsName')]",
+      "type": "Microsoft.Network/privateEndpoints",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[variables('storageAccountId')]"
+      ],
+      "properties": {
+        "privateLinkServiceConnections": [
+          {
+            "name": "[variables('pepDocsName')]",
+            "properties": {
+              "privateLinkServiceId": "[variables('storageAccountId')]",
+              "groupIds": [
+                "file"
+              ]
+            }
+          }
+        ],
+        "subnet": {
+          "id": "[variables('subnet02Id')]"
+        }
+      }
+    },
 
     {
       "apiVersion": "2019-06-01",
@@ -101,11 +169,6 @@
       "properties": {
         "networkAcls": {
           "bypass": "none",
-          "virtualNetworkRules": [
-            {
-              "id": "[variables('subnetId')]"
-            }
-          ],
           "defaultAction": "Deny"
         },
         "supportsHttpsTrafficOnly": true,
@@ -124,7 +187,7 @@
       }
     },
     {
-      "apiVersion": "2020-08-01-preview",
+      "apiVersion": "2019-06-01",
       "name": "[variables('fileShareName')]",
       "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
       "dependsOn": [
@@ -150,7 +213,7 @@
     },
     {
       "type": "Microsoft.Sql/servers/databases",
-      "apiVersion": "2017-10-01-preview",
+      "apiVersion": "2017-03-01-preview",
       "name": "[concat(variables('sqlServerName'), '/', variables('cdcMasteredDataDbName'))]",
       "location": "[resourceGroup().location]",
       "dependsOn": [
