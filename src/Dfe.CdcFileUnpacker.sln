@@ -11,7 +11,17 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dfe.CdcFileUnpacker.Applica
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dfe.CdcFileUnpacker.Infrastructure.AzureStorage", "Dfe.CdcFileUnpacker.Infrastructure.AzureStorage\Dfe.CdcFileUnpacker.Infrastructure.AzureStorage.csproj", "{C422E50A-5602-46B7-9794-139D89752483}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dfe.CdcFileUnpacker.Infrastructure.SqlServer", "Dfe.CdcFileUnpacker.Infrastructure.SqlServer\Dfe.CdcFileUnpacker.Infrastructure.SqlServer.csproj", "{45E07959-9905-4D79-8D64-66C86664408D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dfe.CdcFileUnpacker.Infrastructure.SqlServer", "Dfe.CdcFileUnpacker.Infrastructure.SqlServer\Dfe.CdcFileUnpacker.Infrastructure.SqlServer.csproj", "{45E07959-9905-4D79-8D64-66C86664408D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "azure", "azure", "{AF28F706-E0AC-4CC9-ADC4-9A63EA455B48}"
+	ProjectSection(SolutionItems) = preProject
+		..\azure\template.json = ..\azure\template.json
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "pipelines", "pipelines", "{F191C062-E33B-480F-9F7E-E0CED139AB5A}"
+	ProjectSection(SolutionItems) = preProject
+		..\pipelines\azure-pipelines.yml = ..\pipelines\azure-pipelines.yml
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
