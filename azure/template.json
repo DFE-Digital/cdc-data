@@ -95,7 +95,9 @@
 
     "sqlServerName": "[concat(variables('appNamePrefix'), '-sql-01')]",
     "sqlServerId": "[resourceId('Microsoft.Sql/servers', variables('sqlServerName'))]",
-    "cdcMasteredDataDbName": "[concat(variables('namePrefix'), '-CDC-Mastered-Data')]"
+    "cdcMasteredDataDbName": "[concat(variables('namePrefix'), '-CDC-Mastered-Data')]",
+    "cdcRawDataDbName": "[concat(variables('namePrefix'), '-CDC-Raw-Data')]",
+    "cdcConditionDataDbName": "[concat(variables('namePrefix'), '-CDC-Condition-Data')]"
 
   },
   "resources": [
@@ -215,6 +217,54 @@
       "type": "Microsoft.Sql/servers/databases",
       "apiVersion": "2017-03-01-preview",
       "name": "[concat(variables('sqlServerName'), '/', variables('cdcMasteredDataDbName'))]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[variables('sqlServerId')]"
+      ],
+      "tags": {
+        "environment": "[parameters('environment')]",
+        "app": "[parameters('appName')]"
+      },
+      "sku": {
+        "name": "Basic",
+        "tier": "Basic",
+        "capacity": 5
+      },
+      "kind": "v12.0,user",
+      "properties": {
+        "collation": "SQL_Latin1_General_CP1_CI_AS",
+        "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
+        "zoneRedundant": false
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(variables('sqlServerName'), '/', variables('cdcRawDataDbName'))]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[variables('sqlServerId')]"
+      ],
+      "tags": {
+        "environment": "[parameters('environment')]",
+        "app": "[parameters('appName')]"
+      },
+      "sku": {
+        "name": "Basic",
+        "tier": "Basic",
+        "capacity": 5
+      },
+      "kind": "v12.0,user",
+      "properties": {
+        "collation": "SQL_Latin1_General_CP1_CI_AS",
+        "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
+        "zoneRedundant": false
+      }
+    },
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "apiVersion": "2017-03-01-preview",
+      "name": "[concat(variables('sqlServerName'), '/', variables('cdcConditionDataDbName'))]",
       "location": "[resourceGroup().location]",
       "dependsOn": [
         "[variables('sqlServerId')]"
