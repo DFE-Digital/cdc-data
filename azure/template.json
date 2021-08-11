@@ -149,7 +149,7 @@
           }
         ],
         "subnet": {
-          "id": "[variables('subnet02Id')]"
+          "id": "[variables('subnet01Id')]"
         }
       }
     },
