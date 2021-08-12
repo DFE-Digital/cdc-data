@@ -123,7 +123,7 @@
           }
         ],
         "subnet": {
-          "id": "[variables('subnet02Id')]"
+          "id": "[variables('subnet02Id')]",
           "properties": {
             "privateEndpointNetworkPolicies": "Disabled" 
           }
