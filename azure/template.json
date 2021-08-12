@@ -124,6 +124,9 @@
         ],
         "subnet": {
           "id": "[variables('subnet02Id')]"
+          "properties": {
+            "privateEndpointNetworkPolicies": "Disabled" 
+          }
         }
       }
     },
@@ -149,7 +152,10 @@
           }
         ],
         "subnet": {
-          "id": "[variables('subnet01Id')]"
+          "id": "[variables('subnet02Id')]",
+          "properties": {
+            "privateEndpointNetworkPolicies": "Disabled" 
+          }
         }
       }
     },
