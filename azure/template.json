@@ -177,7 +177,8 @@
       "properties": {
         "networkAcls": {
           "bypass": "none",
-          "defaultAction": "Deny"
+          "defaultAction": "Deny",
+          "ipRules": []
         },
         "supportsHttpsTrafficOnly": true,
         "encryption": {
@@ -290,7 +291,18 @@
         "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
         "zoneRedundant": false
       }
+    },
+    {
+        "type": "Microsoft.Sql/servers/firewallRules",
+        "apiVersion": "2021-02-01-preview",
+        "name": "[concat(variables('sqlServerName'), '/', 'AD.HQ.DEPT')]",
+        "dependsOn": [
+            "[variables('sqlServerId')]"
+        ],
+        "properties": {
+            "startIpAddress": "10.27.0.1",
+            "endIpAddress": "10.27.7.254"
+        }
     }
-
   ]
 }
