@@ -193,7 +193,7 @@
             CloudFileDirectory shareRoot =
                 this.destinationCloudFileShare.GetRootDirectoryReference();
 
-            CloudFileDirectory innerDir = shareRoot;
+            CloudFileDirectory innerDir = shareRoot.GetDirectoryReference("0_CDC1");
             bool dirCreated;
             foreach (string directory in directoryPath)
             {
