@@ -864,6 +864,12 @@
         {
             Uri toReturn = null;
 
+            if (bytes.Length < 1)
+            {
+                this.loggerWrapper.Info($"Skipping file {filename} as it is zero length");
+                return null;
+            }
+
             // Construct a directory for the establishment in the destination
             // storage.
             // Should have a URN, as I believe we're filtering this out before.
