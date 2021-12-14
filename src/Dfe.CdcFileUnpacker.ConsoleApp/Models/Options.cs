@@ -40,7 +40,7 @@
         /// </summary>
         [Option(
             "document-metadata-connection-string",
-            Required = true,
+            Required = false,
             HelpText = "The document metadata connection string.")]
         public string DocumentMetadataConnectionString
         {

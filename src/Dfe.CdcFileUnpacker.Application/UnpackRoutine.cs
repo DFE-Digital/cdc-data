@@ -11,6 +11,7 @@
     using System.Threading;
     using System.Threading.Tasks;
     using System.Web;
+    using Sylvan.Data.Csv;
     using Dfe.CdcFileUnpacker.Application.Definitions;
     using Dfe.CdcFileUnpacker.Application.Definitions.SettingsProvider;
     using Dfe.CdcFileUnpacker.Application.Models;
@@ -31,8 +32,11 @@
         private const string ZipFilenameExtension = ".zip";
 
         private const string SitePlanFilenameSuffix = "_application_pdf.zip";
+        private const string SitePlanOctetFilenameSuffix = "_application_octet-stream.zip";
+        private const string EvidenceMimeTypePartialDwg = "dwg";
         private const string EvidenceMimeTypePartialText = "_text_";
-        private const string EvidenceMimeTypePartialImage = "_image_";
+        private const string EvidenceMimeTypePartialJpeg = "jpeg";
+        private const string EvidenceMimeTypePartialPng = "png";
         private const string ConditionReportArchiveName = "CDC_School_Condition_Report_docx.zip";
         private const string ConditionReportName = "CDC_School_Condition_Report.docx";
 
@@ -53,6 +57,8 @@
         private readonly IDocumentStorageAdapter documentStorageAdapter;
         private readonly ILoggerWrapper loggerWrapper;
         private readonly IUnpackRoutineSettingsProvider unpackRoutineSettingsProvider;
+
+        private Dictionary<string, string> _cdc1Evidence = new Dictionary<string, string>();
 
         /// <summary>
         /// Initialises a new instance of the <see cref="UnpackRoutine" />
@@ -80,6 +86,7 @@
             this.documentStorageAdapter = documentStorageAdapter;
             this.loggerWrapper = loggerWrapper;
             this.unpackRoutineSettingsProvider = unpackRoutineSettingsProvider;
+            this.LoadEvidenceCsv();
         }
 
         /// <inheritdoc />
@@ -135,11 +142,11 @@
 
             // The filename should be in the format
             // GUID_mimetype.zip
-            if (zipFileName.EndsWith(SitePlanFilenameSuffix, StringComparison.InvariantCulture))
+            if (zipFileName.EndsWith(SitePlanFilenameSuffix, StringComparison.InvariantCulture) || zipFileName.Contains(EvidenceMimeTypePartialDwg) || zipFileName.EndsWith(SitePlanOctetFilenameSuffix, StringComparison.InvariantCulture))
             {
                 toReturn = ZipFileType.SitePlan;
             }
-            else if (zipFileName.Contains(EvidenceMimeTypePartialText) || zipFileName.Contains(EvidenceMimeTypePartialImage))
+            else if (zipFileName.Contains(EvidenceMimeTypePartialText) || zipFileName.Contains(EvidenceMimeTypePartialJpeg) || zipFileName.Contains(EvidenceMimeTypePartialPng))
             {
                 toReturn = ZipFileType.Evidence;
             }
@@ -539,26 +546,32 @@
             List<string> usedFileNames,
             CancellationToken cancellationToken)
         {
-            byte[] downloadedBytesArray = await this.DownloadDocument(
+            byte[] unzippedByteArray = await this.DownloadAndUnzip(
                 documentFile,
                 cancellationToken)
                 .ConfigureAwait(false);
 
-            // The filename should be the same as the original, just ammended
-            // slightly.
-            string name = documentFile.Name;
-            name = this.GenerateUniqueName(
-                name,
-                "_",
-                ZipFilenameExtension,
-                usedFileNames);
+            // Attempt to get filename from evidence data
+            string evidenceName = string.Empty;
+            string idSegment = this.GetIdFromName(documentFile.Name);
+            if (idSegment != string.Empty)
+            {
+                var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
+                if (keyExists)
+                {
+                    this.loggerWrapper.Info($"Evidence name: {evidenceName}");
+                } else {
+                    this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
+                    return;
+                }
+            }
 
             await this.SendFileToDestinationStorage(
                 establishment,
                 DestinationEvidenceSubDirectory,
-                name,
+                evidenceName + this.GetFileExtension(documentFile.Name),
                 DestinationEvidenceMimeType,
-                downloadedBytesArray,
+                unzippedByteArray,
                 cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -625,13 +638,22 @@
 
             if (append)
             {
-                string filename = name + DestinationReportFileExtension;
-
-                filename = this.GenerateUniqueName(
-                    filename,
-                    " ",
-                    DestinationReportFileExtension,
-                    usedFileNames);
+                // Attempt to get filename from evidence data
+                string evidenceName = string.Empty;
+                string idSegment = this.GetIdFromName(documentFile.Name);
+                if (idSegment != string.Empty)
+                {
+                    var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
+                    if (keyExists)
+                    {
+                        this.loggerWrapper.Info($"Evidence name: {evidenceName}");
+                    }
+                    else
+                    {
+                        this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
+                        return;
+                    }
+                }
 
                 byte[] reportBytes = await this.DownloadDocument(
                     documentFile,
@@ -641,7 +663,7 @@
                 Uri uri = await this.SendFileToDestinationStorage(
                     establishment,
                     DestinationReportSubDirectory,
-                    filename,
+                    evidenceName + this.GetFileExtension(documentFile.Name),
                     DestinationReportMimeType,
                     reportBytes,
                     cancellationToken)
@@ -653,7 +675,7 @@
                     fileType,
                     uri,
                     name,
-                    filename,
+                    evidenceName,
                     cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -683,13 +705,22 @@
 
             if (append)
             {
-                string filename = name + DestinationReportFileExtension;
-
-                filename = this.GenerateUniqueName(
-                    filename,
-                    " ",
-                    DestinationReportFileExtension,
-                    usedFileNames);
+                // Attempt to get filename from evidence data
+                string evidenceName = string.Empty;
+                string idSegment = this.GetIdFromName(documentFile.Name);
+                if (idSegment != string.Empty)
+                {
+                    var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
+                    if (keyExists)
+                    {
+                        this.loggerWrapper.Info($"Evidence name: {evidenceName}");
+                    }
+                    else
+                    {
+                        this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
+                        return;
+                    }
+                }
 
                 byte[] reportBytes = await this.DownloadAndUnzip(
                     documentFile,
@@ -699,7 +730,7 @@
                 Uri uri = await this.SendFileToDestinationStorage(
                     establishment,
                     DestinationReportSubDirectory,
-                    filename,
+                    evidenceName + this.GetFileExtension(documentFile.Name),
                     DestinationReportMimeType,
                     reportBytes,
                     cancellationToken)
@@ -711,7 +742,7 @@
                     fileType,
                     uri,
                     name,
-                    filename,
+                    evidenceName,
                     cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -736,19 +767,29 @@
                 cancellationToken)
                 .ConfigureAwait(false);
 
+            if (sitePlanBytes.Length < 10000)
+            {
+                // probably a text file, skip it
+                this.loggerWrapper.Info($"{documentFile.Name} with mime type octet-stream is less than 10kb, skipping");
+                return;
+            }
+
             string name = establishment.Name;
             string filename = name + DestinationSitePlanFileExtension;
 
-            filename = this.GenerateUniqueName(
-                filename,
-                " ",
-                DestinationSitePlanFileExtension,
-                usedFileNames);
+            // Attempt to get filename from evidence data
+            string idSegment = this.GetIdFromName(documentFile.Name);
+            string evidenceName = string.Empty;
+            if (idSegment != string.Empty)
+            {
+                var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
+                this.loggerWrapper.Info(keyExists ? $"Evidence name: {evidenceName}" : $"Entry not found for id {idSegment}");
+            }
 
             Uri uri = await this.SendFileToDestinationStorage(
                 establishment,
                 DestinationSitePlanSubDirectory,
-                filename,
+                evidenceName + this.GetFileExtension(documentFile.Name),
                 DestinationSitePlanMimeType,
                 sitePlanBytes,
                 cancellationToken)
@@ -981,6 +1022,55 @@
             };
 
             return toReturn;
+        }
+
+        private string GetIdFromName(string name)
+        {
+            int indexOfSeparator = name.IndexOf(
+                "_",
+                StringComparison.InvariantCulture);
+
+            if (indexOfSeparator > 0)
+            {
+                return name.Substring(0, indexOfSeparator);
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
+
+        private string GetFileExtension(string name)
+        {
+            if (name.Contains(EvidenceMimeTypePartialJpeg)) { return ".jpeg"; }
+            if (name.Contains(EvidenceMimeTypePartialPng)) { return ".png"; }
+            if (name.Contains(EvidenceMimeTypePartialText)) { return ".txt"; }
+            if (name.EndsWith(SitePlanFilenameSuffix, StringComparison.InvariantCulture)) { return ".pdf"; }
+            if (name.EndsWith(SitePlanOctetFilenameSuffix, StringComparison.InvariantCulture)) { return ".dwg"; }
+            if (name.Contains(EvidenceMimeTypePartialDwg)) { return ".dwg"; }
+            if (name == ConditionReportArchiveName || name == ConditionReportName) { return ".docx"; }
+            return string.Empty;
+        }
+
+        private void LoadEvidenceCsv()
+        {
+            this.loggerWrapper.Info("Reading CDC1 evidence data...");
+            using (var csv = CsvDataReader.Create("cdc1-evidence.csv"))
+            {
+                while (csv.Read())
+                {
+                    var exists = this._cdc1Evidence.ContainsKey(csv.GetString(0));
+                    if (!exists)
+                    {
+                        this._cdc1Evidence.Add(csv.GetString(0).ToLower(), csv.GetString(1));
+                    }
+                    else
+                    {
+                        this.loggerWrapper.Warning($"Row with key {csv.GetString(0)}, value {csv.GetString(1)} could not be added, key already exists");
+                    }
+                }
+            }
+            this.loggerWrapper.Info($"CDC1 evidence data loaded ({this._cdc1Evidence.Count} rows)");
         }
     }
 }
