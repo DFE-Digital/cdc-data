@@ -26,7 +26,7 @@
         /// <inheritdoc />
         public void Debug(string message, Exception exception = null)
         {
-            // Do nothing, for now.
+            WriteConsole(ConsoleColor.White, message, exception);
         }
 
         /// <inheritdoc />
@@ -38,7 +38,7 @@
         /// <inheritdoc />
         public void Info(string message, Exception exception = null)
         {
-            // Do nothing, for now.
+            WriteConsole(ConsoleColor.Blue, message, exception);
         }
 
         /// <inheritdoc />
