@@ -58,7 +58,7 @@
         private readonly ILoggerWrapper loggerWrapper;
         private readonly IUnpackRoutineSettingsProvider unpackRoutineSettingsProvider;
 
-        private Dictionary<string, string> _cdc1Evidence = new Dictionary<string, string>();
+        private Dictionary<string, string> _cdc1Evidence = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Initialises a new instance of the <see cref="UnpackRoutine" />
@@ -556,7 +556,7 @@
             string idSegment = this.GetIdFromName(documentFile.Name);
             if (idSegment != string.Empty)
             {
-                var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
+                var keyExists = this._cdc1Evidence.TryGetValue(idSegment, out evidenceName);
                 if (keyExists)
                 {
                     this.loggerWrapper.Info($"Evidence name: {evidenceName}");
@@ -643,7 +643,7 @@
                 string idSegment = this.GetIdFromName(documentFile.Name);
                 if (idSegment != string.Empty)
                 {
-                    var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
+                    var keyExists = this._cdc1Evidence.TryGetValue(idSegment, out evidenceName);
                     if (keyExists)
                     {
                         this.loggerWrapper.Info($"Evidence name: {evidenceName}");
@@ -710,7 +710,7 @@
                 string idSegment = this.GetIdFromName(documentFile.Name);
                 if (idSegment != string.Empty)
                 {
-                    var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
+                    var keyExists = this._cdc1Evidence.TryGetValue(idSegment, out evidenceName);
                     if (keyExists)
                     {
                         this.loggerWrapper.Info($"Evidence name: {evidenceName}");
@@ -782,7 +782,7 @@
             string evidenceName = string.Empty;
             if (idSegment != string.Empty)
             {
-                var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
+                var keyExists = this._cdc1Evidence.TryGetValue(idSegment, out evidenceName);
                 this.loggerWrapper.Info(keyExists ? $"Evidence name: {evidenceName}" : $"Entry not found for id {idSegment}");
             }
 
@@ -1061,18 +1061,22 @@
         private void LoadEvidenceCsv()
         {
             this.loggerWrapper.Info("Reading CDC1 evidence data...");
-            using (var csv = CsvDataReader.Create("cdc1-evidence.csv"))
+            var csvOpts = new CsvDataReaderOptions { HasHeaders = false };
+            using (var csv = CsvDataReader.Create("cdc1-evidence.csv", csvOpts))
             {
                 while (csv.Read())
                 {
-                    var exists = this._cdc1Evidence.ContainsKey(csv.GetString(0));
+                    var key = csv.GetString(0);
+                    var value = csv.GetString(1);
+
+                    var exists = this._cdc1Evidence.ContainsKey(key);
                     if (!exists)
                     {
-                        this._cdc1Evidence.Add(csv.GetString(0).ToLower(), csv.GetString(1));
+                        this._cdc1Evidence.Add(key, value);
                     }
                     else
                     {
-                        this.loggerWrapper.Warning($"Row with key {csv.GetString(0)}, value {csv.GetString(1)} could not be added, key already exists");
+                        this.loggerWrapper.Warning($"Row with key {key}, value {value} could not be added, key already exists");
                     }
                 }
             }
