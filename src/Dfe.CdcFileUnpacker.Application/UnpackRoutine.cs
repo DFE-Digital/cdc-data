@@ -564,12 +564,15 @@
                     this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
                     return;
                 }
+
+                evidenceName += this.GetFileExtension(documentFile.Name);
+                evidenceName = this.StripIllegalCharacters(evidenceName);
             }
 
             await this.SendFileToDestinationStorage(
                 establishment,
                 DestinationEvidenceSubDirectory,
-                evidenceName + this.GetFileExtension(documentFile.Name),
+                evidenceName,
                 DestinationEvidenceMimeType,
                 unzippedByteArray,
                 cancellationToken)
@@ -653,6 +656,9 @@
                         this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
                         return;
                     }
+
+                    evidenceName += this.GetFileExtension(documentFile.Name);
+                    evidenceName = this.StripIllegalCharacters(evidenceName);
                 }
 
                 byte[] reportBytes = await this.DownloadDocument(
@@ -663,7 +669,7 @@
                 Uri uri = await this.SendFileToDestinationStorage(
                     establishment,
                     DestinationReportSubDirectory,
-                    evidenceName + this.GetFileExtension(documentFile.Name),
+                    evidenceName,
                     DestinationReportMimeType,
                     reportBytes,
                     cancellationToken)
@@ -720,6 +726,9 @@
                         this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
                         return;
                     }
+
+                    evidenceName += this.GetFileExtension(documentFile.Name);
+                    evidenceName = this.StripIllegalCharacters(evidenceName);
                 }
 
                 byte[] reportBytes = await this.DownloadAndUnzip(
@@ -730,7 +739,7 @@
                 Uri uri = await this.SendFileToDestinationStorage(
                     establishment,
                     DestinationReportSubDirectory,
-                    evidenceName + this.GetFileExtension(documentFile.Name),
+                    evidenceName,
                     DestinationReportMimeType,
                     reportBytes,
                     cancellationToken)
@@ -783,13 +792,24 @@
             if (idSegment != string.Empty)
             {
                 var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
-                this.loggerWrapper.Info(keyExists ? $"Evidence name: {evidenceName}" : $"Entry not found for id {idSegment}");
+                if (keyExists)
+                {
+                    this.loggerWrapper.Info($"Evidence name: {evidenceName}");
+                }
+                else
+                {
+                    this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
+                    return;
+                }
+
+                evidenceName += this.GetFileExtension(documentFile.Name);
+                evidenceName = this.StripIllegalCharacters(evidenceName);
             }
 
             Uri uri = await this.SendFileToDestinationStorage(
                 establishment,
                 DestinationSitePlanSubDirectory,
-                evidenceName + this.GetFileExtension(documentFile.Name),
+                evidenceName,
                 DestinationSitePlanMimeType,
                 sitePlanBytes,
                 cancellationToken)
@@ -801,7 +821,7 @@
                 fileType,
                 uri,
                 name,
-                filename,
+                evidenceName,
                 cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -1077,6 +1097,20 @@
                 }
             }
             this.loggerWrapper.Info($"CDC1 evidence data loaded ({this._cdc1Evidence.Count} rows)");
+        }
+
+        private string StripIllegalCharacters(string fileName)
+        {
+            fileName = fileName.Replace("/", string.Empty);
+            fileName = fileName.Replace(@"\", string.Empty);
+            fileName = fileName.Replace(":", string.Empty);
+            fileName = fileName.Replace("|", string.Empty);
+            fileName = fileName.Replace("<", string.Empty);
+            fileName = fileName.Replace(">", string.Empty);
+            fileName = fileName.Replace("*", string.Empty);
+            fileName = fileName.Replace("?", string.Empty);
+
+            return fileName;
         }
     }
 }
