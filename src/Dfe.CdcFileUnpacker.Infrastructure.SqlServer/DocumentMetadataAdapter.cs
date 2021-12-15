@@ -63,6 +63,8 @@
                 FileURL = fileUrl,
             };
 
+            this.loggerWrapper.Info($"Calling sp_INSERT_FileData for {fileName}");
+
             using (SqlConnection sqlConnection = await this.GetOpenConnectionAsync(cancellationToken).ConfigureAwait(false))
             {
                 await sqlConnection.ExecuteAsync(
