@@ -223,6 +223,12 @@
 
             CloudFile cloudFile = innerDir.GetFileReference(filename);
 
+            if (await cloudFile.ExistsAsync().ConfigureAwait(false))
+            {
+                this.loggerWrapper.Info($"{filename} already exists in destination, skipping");
+                return cloudFile.Uri;
+            }
+
             this.loggerWrapper.Debug(
                 $"Uploading {bytes.Count()} {nameof(Byte)}s with filename " +
                 $"\"{filename}\"...");
