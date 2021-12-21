@@ -641,25 +641,7 @@
 
             if (append)
             {
-                // Attempt to get filename from evidence data
-                string evidenceName = string.Empty;
-                string idSegment = this.GetIdFromName(documentFile.Name);
-                if (idSegment != string.Empty)
-                {
-                    var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
-                    if (keyExists)
-                    {
-                        this.loggerWrapper.Info($"Evidence name: {evidenceName}");
-                    }
-                    else
-                    {
-                        this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
-                        return;
-                    }
-
-                    evidenceName += this.GetFileExtension(documentFile.Name);
-                    evidenceName = this.StripIllegalCharacters(evidenceName);
-                }
+                string evidenceName = name + DestinationReportFileExtension;
 
                 byte[] reportBytes = await this.DownloadDocument(
                     documentFile,
@@ -711,25 +693,7 @@
 
             if (append)
             {
-                // Attempt to get filename from evidence data
-                string evidenceName = string.Empty;
-                string idSegment = this.GetIdFromName(documentFile.Name);
-                if (idSegment != string.Empty)
-                {
-                    var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
-                    if (keyExists)
-                    {
-                        this.loggerWrapper.Info($"Evidence name: {evidenceName}");
-                    }
-                    else
-                    {
-                        this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
-                        return;
-                    }
-
-                    evidenceName += this.GetFileExtension(documentFile.Name);
-                    evidenceName = this.StripIllegalCharacters(evidenceName);
-                }
+                string evidenceName = name + DestinationReportFileExtension;
 
                 byte[] reportBytes = await this.DownloadAndUnzip(
                     documentFile,
