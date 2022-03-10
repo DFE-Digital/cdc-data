@@ -579,14 +579,12 @@
 
             this.loggerWrapper.Info($"Deleting file {evidenceName} from target");
 
-            //await this.SendFileToDestinationStorage(
-            //    establishment,
-            //    DestinationEvidenceSubDirectory,
-            //    evidenceName,
-            //    DestinationEvidenceMimeType,
-            //    unzippedByteArray,
-            //    cancellationToken)
-            //    .ConfigureAwait(false);
+            await this.DeleteFileFromDestinationStorage(
+                establishment,
+                DestinationEvidenceSubDirectory,
+                evidenceName,
+                cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private async Task ProcessEvidence(
@@ -933,6 +931,30 @@
                 $"File \"{filename}\" sent to destination storage.");
 
             return toReturn;
+        }
+
+        private async Task<bool> DeleteFileFromDestinationStorage(
+            Establishment establishment,
+            string destinationSubDirectory,
+            string filename,
+            CancellationToken cancellationToken)
+        {
+            // Construct a directory for the establishment in the destination
+            // storage.
+            // Should have a URN, as I believe we're filtering this out before.
+            long urn = establishment.Urn.Value;
+            string name = establishment.Name;
+            string program = establishment.Program;
+
+            string destinationEstablishmentDir =
+                string.Format(CultureInfo.InvariantCulture, "{0:00000}", urn) +
+                $" {name} ({program})";
+
+            return await this.documentStorageAdapter.DeleteFileAsync(
+                new string[] { destinationEstablishmentDir, destinationSubDirectory, },
+                filename,
+                cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private async Task<IEnumerable<Establishment>> GetEstablishmentsAsync(

@@ -97,5 +97,25 @@
             string mimeType,
             IEnumerable<byte> bytes,
             CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Deletes a file from the <paramref name="directoryPath" />.
+        /// </summary>
+        /// <param name="directoryPath">
+        /// An array/path to a directory.
+        /// </param>
+        /// <param name="filename">
+        /// The name of the file to delete.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// An instance of <see cref="CancellationToken" />.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Uri" /> to the created file.
+        /// </returns>
+        Task<bool> DeleteFileAsync(
+            string[] directoryPath,
+            string filename,
+            CancellationToken cancellationToken);
     }
 }
