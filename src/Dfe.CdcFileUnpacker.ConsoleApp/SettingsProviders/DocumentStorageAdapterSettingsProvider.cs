@@ -24,16 +24,21 @@
         /// <param name="sourceStorageFileShareName">
         /// The source storage file share name.
         /// </param>
+        /// <param name="deleteFromTarget">
+        /// Whether to delete items from the target.
+        /// </param>
         public DocumentStorageAdapterSettingsProvider(
             string destinationStorageConnectionString,
             string destinationStorageFileShareName,
             string sourceStorageConnectionString,
-            string sourceStorageFileShareName)
+            string sourceStorageFileShareName,
+            bool deleteFromTarget)
         {
             this.DestinationStorageConnectionString = destinationStorageConnectionString;
             this.DestinationStorageFileShareName = destinationStorageFileShareName;
             this.SourceStorageConnectionString = sourceStorageConnectionString;
             this.SourceStorageFileShareName = sourceStorageFileShareName;
+            this.DeleteFromTarget = deleteFromTarget;
         }
 
         /// <inheritdoc />
@@ -59,6 +64,13 @@
 
         /// <inheritdoc />
         public string SourceStorageFileShareName
+        {
+            get;
+            private set;
+        }
+
+        /// <inheritdoc />
+        public bool DeleteFromTarget
         {
             get;
             private set;

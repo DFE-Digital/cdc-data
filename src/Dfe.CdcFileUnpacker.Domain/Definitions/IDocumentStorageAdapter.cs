@@ -12,6 +12,14 @@
     public interface IDocumentStorageAdapter
     {
         /// <summary>
+        /// Gets a value indicating whether items in the input csv should be deleted from the target.
+        /// </summary>
+        bool DeleteFromTarget
+        {
+            get;
+        }
+
+        /// <summary>
         /// Downloads a file for a given <paramref name="absolutePath" />.
         /// </summary>
         /// <param name="absolutePath">

@@ -82,6 +82,8 @@
                 destinationCloudFileClient.GetShareReference(
                     destinationStorageFileShareName);
 
+            this.DeleteFromTarget = documentStorageAdapterSettingsProvider.DeleteFromTarget;
+
             this.loggerWrapper = loggerWrapper;
 
             this.fileRequestOptions = new FileRequestOptions()
@@ -93,6 +95,13 @@
             {
                 // Just default, for now.
             };
+        }
+
+        /// <inheritdoc />
+        public bool DeleteFromTarget
+        {
+            get;
+            private set;
         }
 
         /// <inheritdoc />

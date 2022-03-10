@@ -87,5 +87,18 @@
             get;
             set;
         }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether items in the input csv should be deleted from the target.
+        /// </summary>
+        [Option(
+            "delete-from-target",
+            Default = false,
+            HelpText = "Delete items in csv from target")]
+        public bool DeleteFromTarget
+        {
+            get;
+            set;
+        }
     }
 }

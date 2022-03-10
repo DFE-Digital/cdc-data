@@ -37,5 +37,13 @@
         {
             get;
         }
+
+        /// <summary>
+        /// Gets a value indicating whether items in the input csv should be deleted from the target.
+        /// </summary>
+        bool DeleteFromTarget
+        {
+            get;
+        }
     }
 }
