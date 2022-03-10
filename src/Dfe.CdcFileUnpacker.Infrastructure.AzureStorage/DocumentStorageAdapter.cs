@@ -278,6 +278,39 @@
             return toReturn;
         }
 
+        /// <inheritdoc />
+        public async Task<bool> DeleteFileAsync(
+            string[] directoryPath,
+            string filename,
+            CancellationToken cancellationToken)
+        {
+            if (directoryPath == null)
+            {
+                throw new ArgumentNullException(nameof(directoryPath));
+            }
+
+            this.loggerWrapper.Debug(
+                $"Getting root directory reference for " +
+                $"\"{this.sourceCloudFileShare.Name}\"...");
+
+            CloudFileDirectory shareRoot =
+                this.destinationCloudFileShare.GetRootDirectoryReference();
+
+            CloudFileDirectory innerDir = shareRoot.GetDirectoryReference("0_CDC1");
+            foreach (string directory in directoryPath)
+            {
+                this.loggerWrapper.Debug(
+                    $"Getting reference to directory \"{directory}\"...");
+
+                innerDir = innerDir.GetDirectoryReference(directory);
+
+            }
+
+            CloudFile cloudFile = innerDir.GetFileReference(filename);
+
+            return await cloudFile.DeleteIfExistsAsync();
+        }
+
         private async Task<IEnumerable<TListFileItem>> ListFileItems<TListFileItem>(
             string[] directoryPath,
             CancellationToken cancellationToken)
