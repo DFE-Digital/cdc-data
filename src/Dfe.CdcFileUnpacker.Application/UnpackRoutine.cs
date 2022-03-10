@@ -104,36 +104,36 @@
                 cancellationToken)
                 .ConfigureAwait(false);
 
-            await this.ProcessRootDirectory(
-                RootCdcfeDirectory,
-                false,
-                cancellationToken)
-                .ConfigureAwait(false);
+            //await this.ProcessRootDirectory(
+            //    RootCdcfeDirectory,
+            //    false,
+            //    cancellationToken)
+            //    .ConfigureAwait(false);
 
-            List<string> allUsedReportFilenames = new List<string>();
+            //List<string> allUsedReportFilenames = new List<string>();
 
-            List<string> usedReportFilenames = await this.ProcessRootDirectory(
-                RootCdcReports,
-                false,
-                cancellationToken);
+            //List<string> usedReportFilenames = await this.ProcessRootDirectory(
+            //    RootCdcReports,
+            //    false,
+            //    cancellationToken);
 
-            allUsedReportFilenames.AddRange(usedReportFilenames);
+            //allUsedReportFilenames.AddRange(usedReportFilenames);
 
-            usedReportFilenames = await this.ProcessRootDirectory(
-                RootCdcReports50,
-                false,
-                cancellationToken,
-                appendOnlyIfDoesntExist: true,
-                usedFilenames: allUsedReportFilenames);
+            //usedReportFilenames = await this.ProcessRootDirectory(
+            //    RootCdcReports50,
+            //    false,
+            //    cancellationToken,
+            //    appendOnlyIfDoesntExist: true,
+            //    usedFilenames: allUsedReportFilenames);
 
-            allUsedReportFilenames.AddRange(usedReportFilenames);
+            //allUsedReportFilenames.AddRange(usedReportFilenames);
 
-            await this.ProcessRootDirectory(
-                RootCDCReportsExtra,
-                false,
-                cancellationToken,
-                appendOnlyIfDoesntExist: true,
-                usedFilenames: allUsedReportFilenames);
+            //await this.ProcessRootDirectory(
+            //    RootCDCReportsExtra,
+            //    false,
+            //    cancellationToken,
+            //    appendOnlyIfDoesntExist: true,
+            //    usedFilenames: allUsedReportFilenames);
         }
 
         private static ZipFileType? GetZipFileType(string zipFileName)
@@ -437,6 +437,17 @@
                 this.loggerWrapper.Info(
                     $"{nameof(zipFileType)} = {zipFileType.Value}");
 
+                if (this.documentStorageAdapter.DeleteFromTarget)
+                {
+                    await this.DeleteFileFromTarget(
+                            establishment,
+                            documentFile,
+                            usedFileNames,
+                            cancellationToken)
+                            .ConfigureAwait(false);
+                    return;
+                }
+
                 switch (zipFileType.Value)
                 {
                     case ZipFileType.SitePlan:
@@ -538,6 +549,44 @@
             }
 
             return toReturn;
+        }
+
+        private async Task DeleteFileFromTarget(
+            Establishment establishment,
+            DocumentFile documentFile,
+            List<string> usedFileNames,
+            CancellationToken cancellationToken)
+        {
+            // Attempt to get filename from evidence data
+            string evidenceName = string.Empty;
+            string idSegment = this.GetIdFromName(documentFile.Name);
+            if (idSegment != string.Empty)
+            {
+                var keyExists = this._cdc1Evidence.TryGetValue(idSegment.ToLower(), out evidenceName);
+                if (keyExists)
+                {
+                    this.loggerWrapper.Info($"Evidence name: {evidenceName}");
+                }
+                else
+                {
+                    this.loggerWrapper.Info($"Entry not found for id {idSegment}, skipping file");
+                    return;
+                }
+
+                evidenceName += this.GetFileExtension(documentFile.Name);
+                evidenceName = this.StripIllegalCharacters(evidenceName);
+            }
+
+            this.loggerWrapper.Info($"Deleting file {evidenceName} from target");
+
+            //await this.SendFileToDestinationStorage(
+            //    establishment,
+            //    DestinationEvidenceSubDirectory,
+            //    evidenceName,
+            //    DestinationEvidenceMimeType,
+            //    unzippedByteArray,
+            //    cancellationToken)
+            //    .ConfigureAwait(false);
         }
 
         private async Task ProcessEvidence(
@@ -1045,7 +1094,7 @@
         private void LoadEvidenceCsv()
         {
             this.loggerWrapper.Info("Reading CDC1 evidence data...");
-            using (var csv = CsvDataReader.Create("cdc1-evidence.csv"))
+            using (var csv = CsvDataReader.Create("duplicates_base.csv", new CsvDataReaderOptions { HasHeaders = false }))
             {
                 while (csv.Read())
                 {

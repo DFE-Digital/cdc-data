@@ -132,12 +132,15 @@
                 options.SourceStorageConnectionString;
             string sourceStorageFileShareName =
                 options.SourceStorageFileShareName;
+            bool deleteFromTarget =
+                options.DeleteFromTarget;
             DocumentStorageAdapterSettingsProvider documentStorageAdapterSettingsProvider =
                 new DocumentStorageAdapterSettingsProvider(
                     destinationStorageConnectionString,
                     destinationStorageFileShareName,
                     sourceStorageConnectionString,
-                    sourceStorageFileShareName);
+                    sourceStorageFileShareName,
+                    deleteFromTarget);
 
             byte degreeOfParallelism = options.DegreeOfParallelism;
             UnpackRoutineSettingsProvider unpackRoutineSettingsProvider =
